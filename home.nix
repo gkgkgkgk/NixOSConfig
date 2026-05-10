@@ -20,6 +20,7 @@ in
     networkmanagerapplet
     wlogout
     awww
+    nerd-fonts.geist-mono
   ];
 
   # ── Hyprland ────────────────────────────────────────────────────────────────

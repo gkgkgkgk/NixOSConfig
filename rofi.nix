@@ -1,26 +1,21 @@
 { pkgs, ... }:
-let colors = import ./colors.nix; in
 
 {
   home.packages = [ pkgs.rofi ];
 
   # Written directly so stylix never touches it
   xdg.configFile."rofi/config.rasi".text = ''
+    @import "/home/gavri/.config/rofi/colors.rasi"
+
     configuration {
         modi:                "drun";
         show-icons:          true;
         drun-display-format: "{name}";
     }
 
+    /* No text-color here — set explicitly per widget so nothing overrides */
     * {
-        bg:      ${colors.bg}ed;
-        overlay: ${colors.overlay}d1;
-        fg:      ${colors.fg};
-        subtle:  ${colors.subtle};
-        accent:  ${colors.accent};
-
         background-color: transparent;
-        text-color:       @fg;
         font:             "Inter 11";
     }
 
@@ -31,7 +26,7 @@ let colors = import ./colors.nix; in
         background-color: @bg;
         border-radius:    16px;
         border:           2px;
-        border-color:     ${colors.accent}2e;
+        border-color:     @accent-border;
     }
 
     mainbox {
@@ -65,23 +60,59 @@ let colors = import ./colors.nix; in
         background-color: transparent;
         lines:            7;
         scrollbar:        false;
-        spacing:          2px;
+        spacing:          0px;
         padding:          4px 0 0;
     }
 
-    element {
+    /* ── Normal (unselected) rows — dark, muted ── */
+    element normal.normal {
         background-color: transparent;
-        padding:          8px 12px;
+        text-color:       @subtle;
         border-radius:    8px;
-        spacing:          10px;
-        orientation:      horizontal;
-        children:         [ element-icon, element-text ];
+        padding:          8px 12px;
     }
 
-    element.selected.normal,
-    element.selected.urgent,
-    element.selected.active {
+    /* Alternating row gets a faint dark tint */
+    element alternate.normal {
         background-color: @overlay;
+        text-color:       @subtle;
+        border-radius:    8px;
+        padding:          8px 12px;
+    }
+
+    /* ── Selected row — light and clear ── */
+    element selected.normal {
+        background-color: @accent-border;
+        text-color:       @fg;
+        border-radius:    8px;
+        border:           1px;
+        border-color:     @accent;
+        padding:          8px 12px;
+    }
+
+    /* Apply same layout to urgent/active states */
+    element normal.urgent,
+    element normal.active {
+        background-color: transparent;
+        text-color:       @subtle;
+        border-radius:    8px;
+        padding:          8px 12px;
+    }
+
+    element selected.urgent,
+    element selected.active {
+        background-color: @accent-border;
+        text-color:       @fg;
+        border-radius:    8px;
+        border:           1px;
+        border-color:     @accent;
+        padding:          8px 12px;
+    }
+
+    element {
+        spacing:     10px;
+        orientation: horizontal;
+        children:    [ element-icon, element-text ];
     }
 
     element-icon {
@@ -92,6 +123,7 @@ let colors = import ./colors.nix; in
 
     element-text {
         background-color: transparent;
+        text-color:       inherit;
         vertical-align:   0.5;
     }
 
