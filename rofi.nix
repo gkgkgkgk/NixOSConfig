@@ -1,4 +1,5 @@
 { pkgs, ... }:
+let colors = import ./colors.nix; in
 
 {
   home.packages = [ pkgs.rofi ];
@@ -12,11 +13,11 @@
     }
 
     * {
-        bg:      rgba(35, 33, 54, 0.93);
-        overlay: rgba(57, 53, 82, 0.82);
-        fg:      #e0def4;
-        subtle:  #908caa;
-        accent:  #c4a7e7;
+        bg:      ${colors.bg}ed;
+        overlay: ${colors.overlay}d1;
+        fg:      ${colors.fg};
+        subtle:  ${colors.subtle};
+        accent:  ${colors.accent};
 
         background-color: transparent;
         text-color:       @fg;
@@ -30,7 +31,7 @@
         background-color: @bg;
         border-radius:    16px;
         border:           2px;
-        border-color:     rgba(196, 167, 231, 0.18);
+        border-color:     ${colors.accent}2e;
     }
 
     mainbox {
