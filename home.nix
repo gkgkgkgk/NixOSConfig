@@ -1,7 +1,11 @@
-{ config, pkgs, ... }:
-
+{ config, pkgs, lib, ... }:
+let
+  colors = import ./colors.nix;
+  # Strip leading # so colors can be embedded in rgba() strings
+  c = col: builtins.substring 1 6 col;
+in
 {
-  imports = [ ./rofi.nix ];
+  imports = [ ./rofi.nix ./waybar.nix ];
 
   home.username = "gavri";
   home.homeDirectory = "/home/gavri";
@@ -15,6 +19,7 @@
     slurp
     networkmanagerapplet
     wlogout
+    awww
   ];
 
   # ── Hyprland ────────────────────────────────────────────────────────────────
@@ -32,7 +37,7 @@
       "$mod" = "SUPER";
 
       exec-once = [
-        "waybar"
+        "bash -c '$HOME/OSConfig/scripts/theme-switch.sh && waybar'"
         "mako"
         "nm-applet"
       ];
@@ -42,6 +47,8 @@
         gaps_out = 12;
         border_size = 2;
         layout = "dwindle";
+        "col.active_border"   = lib.mkForce "rgba(${c colors.accent}ff) rgba(${c colors.subtle}ff) 45deg";
+        "col.inactive_border" = lib.mkForce "rgba(${c colors.overlay}aa)";
       };
 
       decoration = {
@@ -127,62 +134,6 @@
     };
   };
 
-  # ── Waybar ──────────────────────────────────────────────────────────────────
-  programs.waybar = {
-    enable = true;
-    settings = {
-      mainBar = {
-        layer = "top";
-        position = "bottom";
-        height = 42;
-        spacing = 6;
-
-        modules-left = [ "hyprland/workspaces" "hyprland/window" ];
-        modules-center = [ "clock" ];
-        modules-right = [ "pulseaudio" "network" "battery" "tray" ];
-
-        "hyprland/workspaces" = {
-          format = "{id}";
-          on-click = "activate";
-        };
-
-        "hyprland/window" = {
-          max-length = 50;
-        };
-
-        clock = {
-          format = "{:%I:%M %p}";
-          format-alt = "{:%A, %B %d, %Y}";
-          tooltip-format = "<tt>{calendar}</tt>";
-        };
-
-        network = {
-          format-wifi = "  {essid}";
-          format-ethernet = "  wired";
-          format-disconnected = "󰤭 ";
-          tooltip-format = "{ipaddr}";
-        };
-
-        pulseaudio = {
-          format = "{icon}  {volume}%";
-          format-muted = "󰝟 ";
-          format-icons = { default = [ "󰕿" "󰖀" "󰕾" ]; };
-          on-click = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
-        };
-
-        battery = {
-          format = "{icon}  {capacity}%";
-          format-charging = "󰂄  {capacity}%";
-          format-icons = [ "󰂎" "󰁺" "󰁼" "󰁾" "󰂀" "󰂂" "󰁹" ];
-          states = { warning = 20; critical = 10; };
-        };
-
-        tray = {
-          spacing = 8;
-        };
-      };
-    };
-  };
 
   # ── Mako (notifications) ────────────────────────────────────────────────────
   services.mako = {
