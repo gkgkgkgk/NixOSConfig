@@ -1,45 +1,42 @@
-$bg:      #231f36;
-$overlay: #524535;
-$fg:      #e0def4;
-$subtle:  #908caa;
-$accent:  #e7d6a7;
+// Colors injected at runtime by theme-hooks/eww.sh ($bg, $fg, $accent, $subtle, $overlay)
 
 * {
   all: unset;
   font-family: "JetBrainsMono Nerd Font Mono";
+  font-weight: bold;
   color: $fg;
 }
 
 // ── Sections ──────────────────────────────────────────────────────────────────
 .section {
-  background: rgba(35, 31, 54, 0.88);
-  border-radius: 6px;
-  padding: 10px 12px;
-  border-left: 1px solid rgba(231, 214, 167, 0.35);
+  background: rgba($bg, 0.9);
+  border-radius: 10px;
+  padding: 15px 18px;
+  border-left: 2px solid rgba($accent, 0.4);
 }
 
 // ── Header row ────────────────────────────────────────────────────────────────
 .sec-label {
-  font-size: 8px;
+  font-size: 14px;
   color: $subtle;
-  letter-spacing: 3px;
+  letter-spacing: 4px;
 }
 
 .sec-val {
-  font-size: 11px;
-  font-weight: bold;
+  font-size: 16px;
   color: $accent;
 }
 
 .sec-dim {
-  font-size: 10px;
+  font-size: 14px;
   color: $subtle;
 }
 
 // ── Braille graph ─────────────────────────────────────────────────────────────
 .graph {
-  font-size: 9px;
+  font-size: 13px;
   letter-spacing: -1px;
+  margin-top: 3px;
 }
 
 .graph.cpu-col {
@@ -52,9 +49,4 @@ $accent:  #e7d6a7;
 
 .graph.ram-col {
   color: $subtle;
-}
-
-.section-disk {
-  padding-top: 8px;
-  padding-bottom: 8px;
 }

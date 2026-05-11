@@ -153,6 +153,15 @@ in
   };
 
 
+  # ── Desktop entries ─────────────────────────────────────────────────────────
+  xdg.desktopEntries.discord = {
+    name = "Discord";
+    exec = "vesktop %U";
+    icon = "vesktop";
+    terminal = false;
+    categories = [ "Network" "InstantMessaging" ];
+  };
+
   # ── Mako (notifications) ────────────────────────────────────────────────────
   services.mako = {
     enable = true;

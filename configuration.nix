@@ -116,6 +116,8 @@
     claude-code
     blender
     antigravity
+    vesktop
+    bitwarden-desktop
   ];
 
   stylix = {
