@@ -5,7 +5,7 @@ let
   c = col: builtins.substring 1 6 col;
 in
 {
-  imports = [ ./rofi.nix ./waybar.nix ];
+  imports = [ ./rofi.nix ./waybar.nix ./eww.nix ];
 
   home.username = "gavri";
   home.homeDirectory = "/home/gavri";
@@ -20,6 +20,7 @@ in
     networkmanagerapplet
     wlogout
     awww
+    socat
     nerd-fonts.geist-mono
   ];
 
@@ -28,9 +29,15 @@ in
     enable = true;
     # Written verbatim — avoids home-manager serialization mangling the rule/matcher format
     extraConfig = ''
-      windowrule = float class:ghostty
+      windowrule = float        class:ghostty
       windowrule = size 900 540 class:ghostty
-      windowrule = move 64% 4% class:ghostty
+      windowrule = move 64% 4%  class:ghostty
+
+      # ── Workspace 0 dashboard terminal ────────────────────────────────────────
+      windowrule = float             class:^(dashboard-term)$
+      windowrule = size 500 320      class:^(dashboard-term)$
+      windowrule = move 100%-515 10  class:^(dashboard-term)$
+      windowrule = opacity 0.88 0.78 class:^(dashboard-term)$
     '';
     settings = {
       monitor = ",preferred,auto,auto";
@@ -41,6 +48,9 @@ in
         "bash -c '$HOME/OSConfig/scripts/theme-switch.sh && waybar'"
         "mako"
         "nm-applet"
+        "bash -c 'eww daemon && $HOME/OSConfig/scripts/dashboard-watch.sh'"
+        "[workspace 10 silent] ghostty --class=dashboard-term"
+        "$HOME/OSConfig/scripts/ws-redirect.sh"
       ];
 
       general = {
@@ -114,12 +124,15 @@ in
         "$mod, 3, workspace, 3"
         "$mod, 4, workspace, 4"
         "$mod, 5, workspace, 5"
+        "$mod, 0, exec, $HOME/OSConfig/scripts/toggle-home.sh"
+        "$mod, D, exec, $HOME/OSConfig/scripts/toggle-home.sh"
         # Move window to workspace
         "$mod SHIFT, 1, movetoworkspace, 1"
         "$mod SHIFT, 2, movetoworkspace, 2"
         "$mod SHIFT, 3, movetoworkspace, 3"
         "$mod SHIFT, 4, movetoworkspace, 4"
         "$mod SHIFT, 5, movetoworkspace, 5"
+        "$mod SHIFT, 0, movetoworkspace, 10"
       ];
 
       # Super alone (on release) opens/closes rofi — no Meta+R needed

@@ -1,0 +1,43 @@
+;;; ──── Data sources ──────────────────────────────────────────────────────────
+(defpoll cpu-pct      :interval "2s"   :initial "0"  `$HOME/.config/eww/scripts/cpu.sh`)
+(defpoll ram-pct      :interval "5s"   :initial "0"  `$HOME/.config/eww/scripts/ram.sh pct`)
+(defpoll ram-used-gb  :interval "5s"   :initial "0"  `$HOME/.config/eww/scripts/ram.sh gb`)
+(defpoll ram-total-gb :interval "300s" :initial "16" `$HOME/.config/eww/scripts/ram.sh total-gb`)
+(defpoll cpu-temp     :interval "5s"   :initial "0"  `$HOME/.config/eww/scripts/temp.sh cpu`)
+(defpoll gpu-temp     :interval "5s"   :initial "0"  `$HOME/.config/eww/scripts/temp.sh gpu`)
+
+;;; ──── Widgets ────────────────────────────────────────────────────────────────
+(defwidget stat-block [title value-text graph-value graph-class]
+  (box :class "panel" :orientation "v" :space-evenly false :spacing 5
+    (box :orientation "h" :space-evenly false
+      (label :class "section-title" :text title :hexpand true)
+      (label :class "stat-value" :text value-text))
+    (graph :value graph-value
+           :time-range 60000
+           :thickness 2
+           :min 0 :max 100
+           :dynamic false
+           :class "stat-graph ${graph-class}"
+           :hexpand true)))
+
+(defwidget dashboard-widget []
+  (box :orientation "v" :space-evenly false :spacing 10
+    (stat-block :title "CPU"
+                :value-text "${cpu-pct}%  ${cpu-temp}°C"
+                :graph-value cpu-pct
+                :graph-class "cpu")
+    (stat-block :title "RAM"
+                :value-text "${ram-pct}%  ${ram-used-gb}/${ram-total-gb}G"
+                :graph-value ram-pct
+                :graph-class "ram")
+    (box :class "panel" :orientation "h" :space-evenly false
+      (label :class "section-title" :text "GPU" :hexpand true)
+      (label :class "stat-value" :text "${gpu-temp}°C"))))
+
+;;; ──── Window ─────────────────────────────────────────────────────────────────
+(defwindow dashboard
+  :monitor 0
+  :geometry (geometry :x "15px" :y "65px" :width "240px" :anchor "top left")
+  :layer "bottom"
+  :exclusive false
+  (dashboard-widget))

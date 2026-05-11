@@ -116,7 +116,6 @@
     claude-code
     blender
     antigravity
-    discord-ptb
   ];
 
   stylix = {

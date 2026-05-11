@@ -35,7 +35,7 @@ AWWW_SOCKET="/run/user/$(id -u)/wayland-1-awww-daemon.sock"
 if ! pgrep -x awww-daemon &>/dev/null; then
   # Remove stale socket left over from a previous session
   rm -f "$AWWW_SOCKET"
-  awww-daemon &
+  awww-daemon &>/dev/null &
   # Wait until the socket appears (up to 5 seconds)
   for i in $(seq 1 25); do
     [[ -S "$AWWW_SOCKET" ]] && break
@@ -44,9 +44,8 @@ if ! pgrep -x awww-daemon &>/dev/null; then
 fi
 
 awww img "$WALLPAPER" \
-  --transition-type grow \
-  --transition-pos center \
-  --transition-duration 1.5
+  --transition-type simple \
+  --transition-duration 0.1
 
 # ── Colors ───────────────────────────────────────────────────────────────────
 # Load theme colors if present, otherwise fall back to defaults from colors.nix
@@ -103,6 +102,13 @@ cat > "$HOME/.config/rofi/colors.rasi" << EOF
 }
 EOF
 
+mkdir -p "$HOME/.config/ghostty"
+cat > "$HOME/.config/ghostty/theme.ghostty" << EOF
+background = ${BG#\#}
+foreground = ${FG#\#}
+EOF
+
 sleep 2 && pkill -SIGUSR2 waybar 2>/dev/null || true
+pkill -SIGUSR2 ghostty 2>/dev/null || true
 
 echo "$(basename "$THEME")" > "$HOME/.cache/current-theme"
