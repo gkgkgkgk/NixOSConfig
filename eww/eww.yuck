@@ -1,43 +1,60 @@
-;;; ──── Data sources ──────────────────────────────────────────────────────────
-(defpoll cpu-pct      :interval "2s"   :initial "0"  `$HOME/.config/eww/scripts/cpu.sh`)
-(defpoll ram-pct      :interval "5s"   :initial "0"  `$HOME/.config/eww/scripts/ram.sh pct`)
-(defpoll ram-used-gb  :interval "5s"   :initial "0"  `$HOME/.config/eww/scripts/ram.sh gb`)
-(defpoll ram-total-gb :interval "300s" :initial "16" `$HOME/.config/eww/scripts/ram.sh total-gb`)
-(defpoll cpu-temp     :interval "5s"   :initial "0"  `$HOME/.config/eww/scripts/temp.sh cpu`)
-(defpoll gpu-temp     :interval "5s"   :initial "0"  `$HOME/.config/eww/scripts/temp.sh gpu`)
+;;; ──── Polls ──────────────────────────────────────────────────────────────────
+(defpoll cpu-pct      :interval "1s"   :initial "0"
+  `$HOME/.config/eww/scripts/cpu.sh`)
+(defpoll cpu-graph    :interval "1s"   :initial ""
+  `python3 $HOME/.config/eww/scripts/braille.py cpu "$($HOME/.config/eww/scripts/cpu.sh)" 20 2`)
+(defpoll cpu-temp     :interval "5s"   :initial "0"
+  `$HOME/.config/eww/scripts/temp.sh cpu`)
+
+(defpoll gpu-pct      :interval "2s"   :initial "0"
+  `$HOME/.config/eww/scripts/gpu.sh`)
+(defpoll gpu-graph    :interval "2s"   :initial ""
+  `python3 $HOME/.config/eww/scripts/braille.py gpu "$($HOME/.config/eww/scripts/gpu.sh)" 20 1`)
+(defpoll gpu-temp     :interval "5s"   :initial "0"
+  `$HOME/.config/eww/scripts/temp.sh gpu`)
+
+(defpoll ram-pct      :interval "2s"   :initial "0"
+  `$HOME/.config/eww/scripts/ram.sh pct`)
+(defpoll ram-used-gb  :interval "2s"   :initial "0"
+  `$HOME/.config/eww/scripts/ram.sh gb`)
+(defpoll ram-total-gb :interval "300s" :initial "16"
+  `$HOME/.config/eww/scripts/ram.sh total-gb`)
+(defpoll ram-graph    :interval "2s"   :initial ""
+  `python3 $HOME/.config/eww/scripts/braille.py ram "$($HOME/.config/eww/scripts/ram.sh pct)" 20 1`)
+
+(defpoll disk-info    :interval "60s"  :initial "—"
+  `$HOME/.config/eww/scripts/disk.sh`)
 
 ;;; ──── Widgets ────────────────────────────────────────────────────────────────
-(defwidget stat-block [title value-text graph-value graph-class]
-  (box :class "panel" :orientation "v" :space-evenly false :spacing 5
-    (box :orientation "h" :space-evenly false
-      (label :class "section-title" :text title :hexpand true)
-      (label :class "stat-value" :text value-text))
-    (graph :value graph-value
-           :time-range 60000
-           :thickness 2
-           :min 0 :max 100
-           :dynamic false
-           :class "stat-graph ${graph-class}"
-           :hexpand true)))
+(defwidget stat-header [lbl val dim]
+  (box :orientation "h" :space-evenly false
+    (label :class "sec-label" :text lbl :hexpand true)
+    (label :class "sec-dim"   :text dim)
+    (label :class "sec-val"   :text val)))
 
 (defwidget dashboard-widget []
-  (box :orientation "v" :space-evenly false :spacing 10
-    (stat-block :title "CPU"
-                :value-text "${cpu-pct}%  ${cpu-temp}°C"
-                :graph-value cpu-pct
-                :graph-class "cpu")
-    (stat-block :title "RAM"
-                :value-text "${ram-pct}%  ${ram-used-gb}/${ram-total-gb}G"
-                :graph-value ram-pct
-                :graph-class "ram")
-    (box :class "panel" :orientation "h" :space-evenly false
-      (label :class "section-title" :text "GPU" :hexpand true)
-      (label :class "stat-value" :text "${gpu-temp}°C"))))
+  (box :orientation "v" :space-evenly false :spacing 8
+    ;; ── CPU ──────────────────────────────────────────────────────────────────
+    (box :class "section" :orientation "v" :space-evenly false :spacing 4
+      (stat-header :lbl "CPU" :val "${cpu-pct}%" :dim "${cpu-temp}°C  ")
+      (label :class "graph cpu-col" :text cpu-graph :wrap false :xalign 0))
+    ;; ── GPU ──────────────────────────────────────────────────────────────────
+    (box :class "section" :orientation "v" :space-evenly false :spacing 4
+      (stat-header :lbl "GPU" :val "${gpu-pct}%" :dim "${gpu-temp}°C  ")
+      (label :class "graph gpu-col" :text gpu-graph :wrap false :xalign 0))
+    ;; ── MEM ──────────────────────────────────────────────────────────────────
+    (box :class "section" :orientation "v" :space-evenly false :spacing 4
+      (stat-header :lbl "MEM" :val "${ram-pct}%" :dim "${ram-used-gb}/${ram-total-gb}G  ")
+      (label :class "graph ram-col" :text ram-graph :wrap false :xalign 0))
+    ;; ── DISK ─────────────────────────────────────────────────────────────────
+    (box :class "section section-disk" :orientation "h" :space-evenly false
+      (label :class "sec-label" :text "DSK" :hexpand true)
+      (label :class "sec-dim"   :text disk-info))))
 
 ;;; ──── Window ─────────────────────────────────────────────────────────────────
 (defwindow dashboard
   :monitor 0
-  :geometry (geometry :x "15px" :y "65px" :width "240px" :anchor "top left")
+  :geometry (geometry :x "15px" :y "65px" :width "260px" :anchor "top left")
   :layer "bottom"
   :exclusive false
   (dashboard-widget))
