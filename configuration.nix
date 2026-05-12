@@ -118,6 +118,7 @@
     antigravity
     vesktop
     bitwarden-desktop
+    unityhub
   ];
 
   stylix = {
