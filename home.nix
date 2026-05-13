@@ -22,6 +22,7 @@ in
     awww
     socat
     nerd-fonts.geist-mono
+    imagemagick
   ];
 
   # ── Hyprland ────────────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ in
       "$mod" = "SUPER";
 
       exec-once = [
+        "awww-daemon"
         "bash -c '$HOME/OSConfig/scripts/theme-switch.sh && waybar'"
         "mako"
         "nm-applet"
@@ -111,6 +113,7 @@ in
         "$mod, P, pseudo"
         "$mod, J, togglesplit"
         "$mod, Escape, exec, wlogout"
+        "$mod SHIFT, W, exec, $HOME/OSConfig/scripts/theme-switch.sh --next"
         # Volume
         ", XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
         ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"

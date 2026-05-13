@@ -7,6 +7,9 @@ cat > "$HOME/.config/waybar/theme-colors.css" << EOF
 @define-color theme_bg         ${BG};
 @define-color theme_fg         ${FG};
 @define-color theme_overlay    ${OVERLAY};
-@define-color theme_clock_text ${CLOCK_TEXT};
+@define-color theme_clock_text ${FG};
+@define-color base01           ${BG};
+@define-color base02           ${OVERLAY};
+@define-color base05           ${FG};
 EOF
-sleep 2 && pkill -SIGUSR2 waybar 2>/dev/null || true
+pkill -SIGUSR2 waybar 2>/dev/null || true

@@ -119,6 +119,7 @@
     vesktop
     bitwarden-desktop
     unityhub
+    codex
   ];
 
   stylix = {

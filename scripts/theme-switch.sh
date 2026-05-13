@@ -1,69 +1,58 @@
 #!/usr/bin/env bash
 # Wallpaper & Theme of the Day
-# Themes live in ~/OSConfig/themes/<name>/
-#   wallpaper.jpg  — required
-#   colors.conf    — optional, defines ACCENT ACCENT2 BG FG OVERLAY
+# Wallpapers live in ~/Pictures/Background Photos — flat directory of images.
 
-THEMES_DIR="$HOME/OSConfig/themes"
+WALLPAPERS_DIR="$HOME/Pictures/Background Photos"
+INDEX_FILE="$HOME/.cache/current-theme-index"
 
-# ── Pick a theme ──────────────────────────────────────────────────────────────
+# ── Pick a wallpaper ───────────────────────────────────────────────────────────
+mapfile -t IMAGES < <(find "$WALLPAPERS_DIR" -maxdepth 1 \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.webp" \) | sort)
+[[ ${#IMAGES[@]} -eq 0 ]] && { echo "No wallpapers found in $WALLPAPERS_DIR"; exit 1; }
+
 if [[ "$1" == "--random" ]]; then
-  mapfile -t THEMES < <(find "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
-  [[ ${#THEMES[@]} -eq 0 ]] && { echo "No themes found in $THEMES_DIR"; exit 1; }
-  THEME="${THEMES[$(( RANDOM % ${#THEMES[@]} ))]}"
+  IDX=$(( RANDOM % ${#IMAGES[@]} ))
+elif [[ "$1" == "--next" ]]; then
+  CURRENT=$(cat "$INDEX_FILE" 2>/dev/null || echo -1)
+  IDX=$(( (CURRENT + 1) % ${#IMAGES[@]} ))
 elif [[ -n "$1" ]]; then
-  THEME="$THEMES_DIR/$1"
+  WALLPAPER=$(printf '%s\n' "${IMAGES[@]}" | grep -i "/$1" | head -1)
+  [[ -z "$WALLPAPER" ]] && { echo "Wallpaper not found: $1"; exit 1; }
+  for i in "${!IMAGES[@]}"; do [[ "${IMAGES[$i]}" == "$WALLPAPER" ]] && IDX=$i && break; done
 else
-  mapfile -t THEMES < <(find "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
-  [[ ${#THEMES[@]} -eq 0 ]] && { echo "No themes found in $THEMES_DIR"; exit 1; }
-  THEME="${THEMES[$(( $(date +%s) / 86400 % ${#THEMES[@]} ))]}"
+  IDX=$(( $(date +%s) / 86400 % ${#IMAGES[@]} ))
 fi
 
-[[ -d "$THEME" ]] || { echo "Theme not found: $THEME"; exit 1; }
-echo "Applying theme: $(basename "$THEME")"
+[[ -z "$WALLPAPER" ]] && WALLPAPER="${IMAGES[$IDX]}"
+echo "${IDX:-0}" > "$INDEX_FILE"
 
-# ── Wallpaper ─────────────────────────────────────────────────────────────────
-WALLPAPER=$(find "$THEME" -maxdepth 1 \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.webp" \) | head -1)
-[[ -z "$WALLPAPER" ]] && { echo "No wallpaper found in $THEME"; exit 1; }
+echo "Applying wallpaper: $(basename "$WALLPAPER")"
 
-AWWW_SOCKET="/run/user/$(id -u)/wayland-1-awww-daemon.sock"
-pkill -x awww-daemon 2>/dev/null; sleep 0.2
-rm -f "$AWWW_SOCKET"
-awww-daemon &>/dev/null &
-for i in $(seq 1 25); do [[ -S "$AWWW_SOCKET" ]] && break; sleep 0.2; done
-awww img "$WALLPAPER" --transition-type simple --transition-duration 0.1
+# ── Set wallpaper immediately ──────────────────────────────────────────────────
+awww img "$WALLPAPER" --transition-type wipe --transition-duration 0.5 --transition-fps 144 &
 
-# ── Load colors ───────────────────────────────────────────────────────────────
-if [[ -f "$THEME/colors.conf" ]]; then
-  source "$THEME/colors.conf"
+# ── Extract colors (cached per image) ─────────────────────────────────────────
+PALETTE_DIR="$HOME/.cache/theme/palettes"
+mkdir -p "$PALETTE_DIR"
+CACHED="$PALETTE_DIR/$(basename "$WALLPAPER").env"
+
+if [[ -f "$CACHED" ]]; then
+  cp "$CACHED" "$HOME/.cache/theme/colors.env"
 else
-  ACCENT="#e7d6a7"
-  ACCENT2="#908caa"
-  BG="#231f36"
-  FG="#e0def4"
-  OVERLAY="#524535"
+  python3 "$HOME/OSConfig/scripts/generate-colors.py" "$WALLPAPER"
+  cp "$HOME/.cache/theme/colors.env" "$CACHED"
 fi
 
-if [[ -z "$CLOCK_TEXT" ]]; then
-  r=$((16#${BG:1:2})); g=$((16#${BG:3:2})); b=$((16#${BG:5:2}))
-  lum=$(( (299*r + 587*g + 114*b) / 1000 ))
-  (( lum < 128 )) && CLOCK_TEXT="$FG" || CLOCK_TEXT="#1a1520"
-fi
+# ── Pre-warm next image (colors + page cache) in background ───────────────────
+NEXT_IDX=$(( (${IDX:-0} + 1) % ${#IMAGES[@]} ))
+NEXT_IMG="${IMAGES[$NEXT_IDX]}"
+NEXT_CACHED="$PALETTE_DIR/$(basename "$NEXT_IMG").env"
+{ [[ ! -f "$NEXT_CACHED" ]] && python3 "$HOME/OSConfig/scripts/generate-colors.py" \
+  "$NEXT_IMG" "$NEXT_CACHED"; cat "$NEXT_IMG" > /dev/null; } &>/dev/null &
 
-# ── Canonical colors file — hooks source this ─────────────────────────────────
-mkdir -p "$HOME/.cache/theme"
-cat > "$HOME/.cache/theme/colors.env" << EOF
-export ACCENT="${ACCENT}"
-export ACCENT2="${ACCENT2}"
-export BG="${BG}"
-export FG="${FG}"
-export OVERLAY="${OVERLAY}"
-export CLOCK_TEXT="${CLOCK_TEXT}"
-EOF
+echo "$(basename "$WALLPAPER")" > "$HOME/.cache/current-theme"
 
-echo "$(basename "$THEME")" > "$HOME/.cache/current-theme"
-
-# ── Run all hooks ─────────────────────────────────────────────────────────────
+# ── Run all hooks in parallel ──────────────────────────────────────────────────
 for hook in "$HOME/OSConfig/theme-hooks/"*.sh; do
-  [[ -x "$hook" ]] && bash "$hook"
+  [[ -x "$hook" ]] && bash "$hook" &
 done
+wait
