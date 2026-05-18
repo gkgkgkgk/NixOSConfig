@@ -5,11 +5,18 @@ let
   c = col: builtins.substring 1 6 col;
 in
 {
-  imports = [ ./rofi.nix ./waybar.nix ./eww.nix ];
+  imports = [ ./waybar.nix ./eww.nix ];
 
   home.username = "gavri";
   home.homeDirectory = "/home/gavri";
   home.stateVersion = "25.11";
+
+  # Disable Stylix's auto-theming of Noctalia so colors.json stays writable at runtime
+  stylix.targets.noctalia-shell.enable = false;
+  # awww manages the wallpaper; disable stylix's hyprpaper so they don't conflict
+  stylix.targets.hyprpaper.enable = lib.mkForce false;
+
+  programs.noctalia-shell.enable = true;
 
   gtk.gtk4.theme = config.gtk.theme;
 
@@ -30,25 +37,43 @@ in
     enable = true;
     # Written verbatim — avoids home-manager serialization mangling the rule/matcher format
     extraConfig = ''
-      windowrule = float        class:ghostty
-      windowrule = size 900 540 class:ghostty
-      windowrule = move 64% 4%  class:ghostty
+      windowrule {
+        name = ghostty-setup
+        match:class = ghostty
+        float = true
+        size = 900 540
+        move = 64% 4%
+      }
 
       # ── Workspace 0 dashboard terminal ────────────────────────────────────────
-      windowrule = float             class:^(dashboard-term)$
-      windowrule = size 500 320      class:^(dashboard-term)$
-      windowrule = move 100%-515 10  class:^(dashboard-term)$
-      windowrule = opacity 0.88 0.78 class:^(dashboard-term)$
+      windowrule {
+        name = dashboard-term-setup
+        match:class = ^dashboard-term$
+        float = true
+        size = 500 320
+        move = 100%-515 10
+        opacity = 0.88 0.78
+      }
     '';
     settings = {
       monitor = ",preferred,auto,auto";
 
       "$mod" = "SUPER";
 
+      env = [
+        "XCURSOR_THEME,BreezeX-RosePine-Linux"
+        "XCURSOR_SIZE,24"
+        "NOCTALIA_PAM_SERVICE,noctalia-lock"
+      ];
+
       exec-once = [
         "awww-daemon"
-        "bash -c '$HOME/OSConfig/scripts/theme-switch.sh && waybar'"
-        "mako"
+        # Run theme-switch first so Wallpaper.json exists before noctalia-shell scans schemes
+        "bash -c '$HOME/OSConfig/scripts/theme-switch.sh'"
+        "bash -c 'sleep 2 && QS_CONFIG_PATH=/home/gavri/Code/GavBar noctalia-shell'"
+        # Re-run noctalia after GavBar initializes: startup ColorSchemeService overwrites colors.json
+        # with the predefined scheme ~2s after launch; this runs after that to apply wallpaper colors.
+        "bash -c 'sleep 5 && $HOME/OSConfig/theme-hooks/noctalia.sh'"
         "nm-applet"
         "bash -c 'eww daemon && $HOME/OSConfig/scripts/dashboard-watch.sh'"
         "[workspace 10 silent] ghostty --class=dashboard-term"
@@ -98,10 +123,10 @@ in
       };
 
       dwindle = {
-        pseudotile = true;
         preserve_split = true;
       };
 
+      workspace = [ "10, defaultName:⌂, persistent:true" ];
 
       # Keybinds
       bind = [
@@ -111,9 +136,10 @@ in
         "$mod, M, exec, bash -c 'loginctl terminate-session $XDG_SESSION_ID'"
         "$mod, F, togglefloating"
         "$mod, P, pseudo"
-        "$mod, J, togglesplit"
+        "$mod, J, layoutmsg, togglesplit"
         "$mod, Escape, exec, wlogout"
         "$mod SHIFT, W, exec, $HOME/OSConfig/scripts/theme-switch.sh --next"
+        "$mod SHIFT, S, exec, hyprshot -m region"
         # Volume
         ", XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
         ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
@@ -142,9 +168,9 @@ in
         "$mod SHIFT, 0, movetoworkspace, 10"
       ];
 
-      # Super alone (on release) opens/closes rofi — no Meta+R needed
+      # Super alone (on release) toggles GavBar launcher
       bindr = [
-        "SUPER, Super_L, exec, pkill rofi || rofi -show drun"
+        "SUPER, Super_L, exec, QS_CONFIG_PATH=/home/gavri/Code/GavBar noctalia-shell msg launcher toggle"
       ];
 
       # Mouse binds
@@ -163,6 +189,28 @@ in
     icon = "vesktop";
     terminal = false;
     categories = [ "Network" "InstantMessaging" ];
+  };
+
+  # Hide the vesktop.desktop that ships with the package — only the "Discord" alias above should appear
+  xdg.desktopEntries.vesktop = {
+    name = "Vesktop";
+    exec = "vesktop %U";
+    noDisplay = true;
+  };
+
+  xdg.desktopEntries.terminal = {
+    name = "Terminal";
+    exec = "ghostty";
+    icon = "com.mitchellh.ghostty";
+    terminal = false;
+    categories = [ "System" "TerminalEmulator" ];
+  };
+
+  # Hide the original Ghostty entry — only "Terminal" above should appear
+  xdg.desktopEntries."com.mitchellh.ghostty" = {
+    name = "Ghostty";
+    exec = "ghostty";
+    noDisplay = true;
   };
 
   # ── Mako (notifications) ────────────────────────────────────────────────────

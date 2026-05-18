@@ -15,8 +15,9 @@ show_or_hide "$(hyprctl activeworkspace | awk 'NR==1{print $3}')"
 
 nc -U "$SOCK" | while IFS= read -r line; do
   case "$line" in
-    "workspace>>"*)
-      show_or_hide "${line#workspace>>}"
+    "workspacev2>>"*)
+      payload="${line#workspacev2>>}"
+      show_or_hide "${payload%%,*}"
       ;;
   esac
 done

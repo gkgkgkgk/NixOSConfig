@@ -8,6 +8,10 @@
             inputs.nixpkgs.follows = "nixpkgs";
         };
         stylix.url = "github:danth/stylix";
+        noctalia = {
+          url = "github:noctalia-dev/noctalia-shell";
+          inputs.nixpkgs.follows = "nixpkgs";
+        };
     };
 
     outputs = { self, nixpkgs, home-manager, stylix, ...}@inputs:
@@ -24,7 +28,9 @@
                     home-manager.useUserPackages = true;
                     home-manager.backupFileExtension = "backup";
                     home-manager.users.gavri = import ./home.nix;
+                    home-manager.sharedModules = [ inputs.noctalia.homeModules.default ];
                 }
+                ./noctalia.nix
             ];
         };
     };

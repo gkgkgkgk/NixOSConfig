@@ -47,10 +47,8 @@
   # You can disable this if you're only using the Wayland session.
   services.xserver.enable = true;
 
-  # Display manager — keep KDE as a fallback while you settle into Hyprland
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
-  services.desktopManager.plasma6.enable = true;
 
   # Hyprland
   programs.hyprland.enable = true;
@@ -89,7 +87,6 @@
     description = "Gavri";
     extraGroups = [ "networkmanager" "wheel" ];
     packages = with pkgs; [
-      kdePackages.kate
     #  thunderbird
     ];
   };
@@ -120,6 +117,10 @@
     bitwarden-desktop
     unityhub
     codex
+    spotify
+    gimp
+    hyprshot
+    fastfetch
   ];
 
   stylix = {
@@ -128,6 +129,11 @@
     # Replace with your own wallpaper path once you have one you like
     image = "${pkgs.nixos-artwork.wallpapers.simple-dark-gray}/share/artwork/gnome/nix-wallpaper-simple-dark-gray.png";
     polarity = "dark";
+    cursor = {
+      package = pkgs.rose-pine-cursor;
+      name = "BreezeX-RosePine-Linux";
+      size = 24;
+    };
     fonts = {
       monospace = {
         package = pkgs.nerd-fonts.jetbrains-mono;
@@ -147,6 +153,32 @@
   # Unlock the GNOME keyring on SDDM login so NetworkManager can read saved WiFi passwords
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.sddm.enableGnomeKeyring = true;
+
+  # Lockscreen PIN — verifies the PIN hash stored in /etc/noctalia-pin-hash.
+  # Falls back to the system password if the PIN doesn't match.
+  # Set/change your PIN after rebuild: openssl passwd -6 | sudo tee /etc/noctalia-pin-hash && sudo chmod 600 /etc/noctalia-pin-hash
+  environment.etc."noctalia-check-pin" = {
+    mode = "0755";
+    text = ''
+      #!/bin/sh
+      read -r pin
+      [ -f /etc/noctalia-pin-hash ] || exit 1
+      stored=$(cat /etc/noctalia-pin-hash)
+      salt=$(printf '%s' "$stored" | cut -d: -f1)
+      expected=$(printf '%s' "$stored" | cut -d: -f2)
+      [ -z "$salt" ] && exit 1
+      actual=$(printf '%s%s' "$salt" "$pin" | sha512sum | cut -d' ' -f1)
+      [ "$actual" = "$expected" ]
+    '';
+  };
+
+  security.pam.services.noctalia-lock.text = ''
+    auth sufficient pam_exec.so expose_authtok quiet /etc/noctalia-check-pin
+    auth required pam_unix.so nullok
+    account required pam_permit.so
+    session required pam_permit.so
+    password required pam_deny.so
+  '';
 
   hardware.openrazer.enable = true;
   hardware.openrazer.users = ["gavri"];

@@ -27,11 +27,11 @@
         };
 
         "hyprland/workspaces" = {
-          format             = "{id}";
+          format             = "{name}";
           on-click           = "activate";
           on-scroll-up       = "hyprctl dispatch workspace e+1";
           on-scroll-down     = "hyprctl dispatch workspace e-1";
-          ignore-workspaces  = [ "10" "0" ];
+          ignore-workspaces  = [ "0" ];
         };
 
         clock = {
