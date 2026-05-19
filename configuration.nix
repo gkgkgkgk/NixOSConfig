@@ -47,8 +47,16 @@
   # You can disable this if you're only using the Wayland session.
   services.xserver.enable = true;
 
-  services.displayManager.sddm.enable = true;
-  services.displayManager.sddm.wayland.enable = true;
+  # Autologin via greetd. No greeter UI shown — Hyprland starts directly as
+  # gavri, and the exec-once in home.nix immediately fires the GavBar lockscreen.
+  # This makes the lock-with-PIN flow effectively the "login screen".
+  services.greetd = {
+    enable = true;
+    settings.default_session = {
+      command = "Hyprland";
+      user = "gavri";
+    };
+  };
 
   # Hyprland
   programs.hyprland.enable = true;
@@ -61,6 +69,9 @@
 
   # Enable CUPS to print documents.
   services.printing.enable = true;
+
+  # gvfs powers Nemo's network drives (SMB/SFTP/etc.) and trash integration
+  services.gvfs.enable = true;
 
   # Enable sound with pipewire.
   services.pulseaudio.enable = false;
@@ -123,36 +134,20 @@
     fastfetch
   ];
 
-  stylix = {
-    enable = true;
-    base16Scheme = "${pkgs.base16-schemes}/share/themes/rose-pine.yaml";
-    # Replace with your own wallpaper path once you have one you like
-    image = "${pkgs.nixos-artwork.wallpapers.simple-dark-gray}/share/artwork/gnome/nix-wallpaper-simple-dark-gray.png";
-    polarity = "dark";
-    cursor = {
-      package = pkgs.rose-pine-cursor;
-      name = "BreezeX-RosePine-Linux";
-      size = 24;
-    };
-    fonts = {
-      monospace = {
-        package = pkgs.nerd-fonts.jetbrains-mono;
-        name = "JetBrainsMono Nerd Font";
-      };
-      sansSerif = {
-        package = pkgs.inter;
-        name = "Inter";
-      };
-      sizes = {
-        applications = 11;
-        terminal = 13;
-      };
+  fonts = {
+    packages = with pkgs; [
+      nerd-fonts.jetbrains-mono
+      inter
+    ];
+    fontconfig.defaultFonts = {
+      monospace = [ "JetBrainsMono Nerd Font" ];
+      sansSerif = [ "Inter" ];
     };
   };
 
-  # Unlock the GNOME keyring on SDDM login so NetworkManager can read saved WiFi passwords
+  # Unlock the GNOME keyring on login so NetworkManager can read saved WiFi passwords
   services.gnome.gnome-keyring.enable = true;
-  security.pam.services.sddm.enableGnomeKeyring = true;
+  security.pam.services.greetd.enableGnomeKeyring = true;
 
   # Lockscreen PIN — verifies the PIN hash stored in /etc/noctalia-pin-hash.
   # Falls back to the system password if the PIN doesn't match.

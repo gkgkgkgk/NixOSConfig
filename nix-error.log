@@ -1,2 +1,0 @@
-warning: Git tree '/home/gavri/OSConfig' is dirty
-error: flake 'git+file:///home/gavri/OSConfig' does not provide attribute 'packages.x86_64-linux.default' or 'defaultPackage.x86_64-linux'

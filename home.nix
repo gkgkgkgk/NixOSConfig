@@ -3,22 +3,32 @@ let
   colors = import ./colors.nix;
   # Strip leading # so colors can be embedded in rgba() strings
   c = col: builtins.substring 1 6 col;
+
+  # Single source of truth for default GUI apps — drives both desktop entries
+  # and xdg.mimeApps. Swap a value here and the whole stack follows.
+  myApps = {
+    fileManager = "nemo.desktop";
+    image       = "imv.desktop";
+    pdf         = "sioyek.desktop";
+    video       = "mpv.desktop";
+  };
 in
 {
-  imports = [ ./waybar.nix ./eww.nix ];
+  imports = [ ./waybar.nix ./eww.nix ./home-workspace/widgets.nix ];
 
   home.username = "gavri";
   home.homeDirectory = "/home/gavri";
   home.stateVersion = "25.11";
 
-  # Disable Stylix's auto-theming of Noctalia so colors.json stays writable at runtime
-  stylix.targets.noctalia-shell.enable = false;
-  # awww manages the wallpaper; disable stylix's hyprpaper so they don't conflict
-  stylix.targets.hyprpaper.enable = lib.mkForce false;
+  home.pointerCursor = {
+    name = "BreezeX-RosePine-Linux";
+    package = pkgs.rose-pine-cursor;
+    size = 24;
+    gtk.enable = true;
+    x11.enable = true;
+  };
 
   programs.noctalia-shell.enable = true;
-
-  gtk.gtk4.theme = config.gtk.theme;
 
   home.packages = with pkgs; [
     wl-clipboard
@@ -30,7 +40,38 @@ in
     socat
     nerd-fonts.geist-mono
     imagemagick
+    nemo-with-extensions
+    cifs-utils
+    sioyek
+    imv
+    mpv
+    gnome-themes-extra  # provides Adwaita-dark on disk for the Tick/Tock symlinks
+    glib                # provides the `gsettings` CLI used by theme-hooks/gtk.sh
   ];
+
+  # Two theme directories symlinked to the same Adwaita-dark source.
+  # theme-hooks/gtk.sh alternates gsettings between these two names to
+  # invalidate GTK3's CSS cache without changing what the user actually sees.
+  home.file.".local/share/themes/WallpaperTheme-Tick".source =
+    "${pkgs.gnome-themes-extra}/share/themes/Adwaita-dark";
+  home.file.".local/share/themes/WallpaperTheme-Tock".source =
+    "${pkgs.gnome-themes-extra}/share/themes/Adwaita-dark";
+
+  # NOTE: ~/.config/gtk-3.0/gtk.css and gtk-4.0/gtk.css are owned by
+  # theme-hooks/gtk.sh at runtime — not declared here. Home-manager would
+  # otherwise create read-only symlinks that the hook can't overwrite.
+
+  # mpv: static config sets the IPC server (used by theme-hooks/mpv.sh to push
+  # live theme updates) and pulls in the runtime-written theme file via include=.
+  xdg.configFile."mpv/mpv.conf".text = ''
+    input-ipc-server=/tmp/mpvsocket
+    include=${config.home.homeDirectory}/.cache/theme/mpv.conf
+  '';
+
+  qt = {
+    enable = true;
+    platformTheme.name = "kde";  # Sioyek (and any future Qt app) reads kdeglobals via this
+  };
 
   # ── Hyprland ────────────────────────────────────────────────────────────────
   wayland.windowManager.hyprland = {
@@ -45,15 +86,8 @@ in
         move = 64% 4%
       }
 
-      # ── Workspace 0 dashboard terminal ────────────────────────────────────────
-      windowrule {
-        name = dashboard-term-setup
-        match:class = ^dashboard-term$
-        float = true
-        size = 500 320
-        move = 100%-515 10
-        opacity = 0.88 0.78
-      }
+      # Dashboard-term windowrule + systemd service live in
+      # ./home-workspace/widgets.nix (imported above).
     '';
     settings = {
       monitor = ",preferred,auto,auto";
@@ -64,9 +98,11 @@ in
         "XCURSOR_THEME,BreezeX-RosePine-Linux"
         "XCURSOR_SIZE,24"
         "NOCTALIA_PAM_SERVICE,noctalia-lock"
+        "QT_QPA_PLATFORMTHEME,kde"
       ];
 
       exec-once = [
+        "dbus-update-activation-environment --systemd --all"
         "awww-daemon"
         # Run theme-switch first so Wallpaper.json exists before noctalia-shell scans schemes
         "bash -c '$HOME/OSConfig/scripts/theme-switch.sh'"
@@ -74,10 +110,11 @@ in
         # Re-run noctalia after GavBar initializes: startup ColorSchemeService overwrites colors.json
         # with the predefined scheme ~2s after launch; this runs after that to apply wallpaper colors.
         "bash -c 'sleep 5 && $HOME/OSConfig/theme-hooks/noctalia.sh'"
+        # Lock the session immediately after GavBar is up. With greetd autologin,
+        # this is what the user actually sees at boot — the "login screen".
+        "bash -c 'sleep 4 && QS_CONFIG_PATH=/home/gavri/Code/GavBar noctalia-shell msg lock toggle'"
         "nm-applet"
-        "bash -c 'eww daemon && $HOME/OSConfig/scripts/dashboard-watch.sh'"
-        "[workspace 10 silent] ghostty --class=dashboard-term"
-        "$HOME/OSConfig/scripts/ws-redirect.sh"
+        "eww daemon"
       ];
 
       general = {
@@ -181,7 +218,6 @@ in
     };
   };
 
-
   # ── Desktop entries ─────────────────────────────────────────────────────────
   xdg.desktopEntries.discord = {
     name = "Discord";
@@ -211,6 +247,37 @@ in
     name = "Ghostty";
     exec = "ghostty";
     noDisplay = true;
+  };
+
+  xdg.desktopEntries."file-explorer" = {
+    name = "File Explorer";
+    exec = "nemo %U";
+    icon = "system-file-manager";
+    terminal = false;
+    categories = [ "System" "FileManager" ];
+  };
+
+  xdg.mimeApps = {
+    enable = true;
+    defaultApplications = {
+      "inode/directory"                  = myApps.fileManager;
+      "application/x-gnome-saved-search" = myApps.fileManager;
+
+      "application/pdf"                  = myApps.pdf;
+
+      "image/jpeg" = myApps.image;
+      "image/png"  = myApps.image;
+      "image/gif"  = myApps.image;
+      "image/webp" = myApps.image;
+      "image/bmp"  = myApps.image;
+      "image/tiff" = myApps.image;
+      "image/avif" = myApps.image;
+
+      "video/mp4"        = myApps.video;
+      "video/x-matroska" = myApps.video;
+      "video/webm"       = myApps.video;
+      "video/quicktime"  = myApps.video;
+    };
   };
 
   # ── Mako (notifications) ────────────────────────────────────────────────────

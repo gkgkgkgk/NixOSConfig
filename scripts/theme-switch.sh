@@ -30,7 +30,7 @@ echo "Applying wallpaper: $(basename "$WALLPAPER")"
 # ── Set wallpaper via awww (animated transition) ──────────────────────────────
 # exec-once launches awww-daemon and this script simultaneously; wait for the socket
 until pgrep -f awww-daemon > /dev/null; do sleep 0.05; done
-awww img "$WALLPAPER" --transition-type wipe --transition-duration 0.25 --transition-fps 144 &
+awww img "$WALLPAPER" --transition-type fade --transition-duration 1.25 --transition-fps 144 &
 
 # ── Extract colors (cached per image) ─────────────────────────────────────────
 PALETTE_DIR="$HOME/.cache/theme/palettes"

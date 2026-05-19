@@ -3,7 +3,6 @@
 {
   home.packages = [ pkgs.rofi ];
 
-  # Written directly so stylix never touches it
   xdg.configFile."rofi/config.rasi".text = ''
     @import "/home/gavri/.config/rofi/colors.rasi"
 

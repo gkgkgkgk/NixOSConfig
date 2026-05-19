@@ -24,7 +24,7 @@ handle() {
       local ws="${rest%%,*}"
       local rest2="${rest#*,}"
       local class="${rest2%%,*}"
-      if [ "$ws" = "10" ] && [ "$class" != "dashboard-term" ]; then
+      if { [ "$ws" = "10" ] || [ "$ws" = "⌂" ]; } && [ "$class" != "com.local.dashboard-term" ]; then
         local target; target=$(next_empty)
         hyprctl dispatch movetoworkspace "${target},address:0x${addr}" >/dev/null 2>&1
       fi

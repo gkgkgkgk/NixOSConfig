@@ -7,14 +7,13 @@
             url = "github:nix-community/home-manager";
             inputs.nixpkgs.follows = "nixpkgs";
         };
-        stylix.url = "github:danth/stylix";
         noctalia = {
           url = "github:noctalia-dev/noctalia-shell";
           inputs.nixpkgs.follows = "nixpkgs";
         };
     };
 
-    outputs = { self, nixpkgs, home-manager, stylix, ...}@inputs:
+    outputs = { self, nixpkgs, home-manager, ...}@inputs:
     {
         nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
             system = "x86_64-linux";
@@ -22,7 +21,6 @@
             modules = [
                 ./configuration.nix
                 home-manager.nixosModules.home-manager
-                stylix.nixosModules.stylix
                 {
                     home-manager.useGlobalPkgs = true;
                     home-manager.useUserPackages = true;
