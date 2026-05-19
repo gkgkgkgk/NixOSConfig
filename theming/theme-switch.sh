@@ -40,7 +40,7 @@ CACHED="$PALETTE_DIR/$(basename "$WALLPAPER").env"
 if [[ -f "$CACHED" ]]; then
   cp "$CACHED" "$HOME/.cache/theme/colors.env"
 else
-  python3 "$HOME/OSConfig/scripts/generate-colors.py" "$WALLPAPER"
+  python3 "$HOME/OSConfig/theming/generate-colors.py" "$WALLPAPER"
   cp "$HOME/.cache/theme/colors.env" "$CACHED"
 fi
 
@@ -48,13 +48,13 @@ fi
 NEXT_IDX=$(( (${IDX:-0} + 1) % ${#IMAGES[@]} ))
 NEXT_IMG="${IMAGES[$NEXT_IDX]}"
 NEXT_CACHED="$PALETTE_DIR/$(basename "$NEXT_IMG").env"
-{ [[ ! -f "$NEXT_CACHED" ]] && python3 "$HOME/OSConfig/scripts/generate-colors.py" \
+{ [[ ! -f "$NEXT_CACHED" ]] && python3 "$HOME/OSConfig/theming/generate-colors.py" \
   "$NEXT_IMG" "$NEXT_CACHED"; cat "$NEXT_IMG" > /dev/null; } &>/dev/null &
 
 echo "$(basename "$WALLPAPER")" > "$HOME/.cache/current-theme"
 
 # ── Run all hooks in parallel ──────────────────────────────────────────────────
-for hook in "$HOME/OSConfig/theme-hooks/"*.sh; do
+for hook in "$HOME/OSConfig/theming/hooks/"*.sh; do
   [[ -x "$hook" ]] && bash "$hook" &
 done
 wait

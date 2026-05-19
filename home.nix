@@ -1,6 +1,6 @@
 { config, pkgs, lib, ... }:
 let
-  colors = import ./colors.nix;
+  colors = import ./theming/colors.nix;
   # Strip leading # so colors can be embedded in rgba() strings
   c = col: builtins.substring 1 6 col;
 
@@ -14,7 +14,7 @@ let
   };
 in
 {
-  imports = [ ./waybar.nix ./eww.nix ./home-workspace/widgets.nix ];
+  imports = [ ./eww ./home-workspace/widgets.nix ];
 
   home.username = "gavri";
   home.homeDirectory = "/home/gavri";
@@ -104,17 +104,12 @@ in
       exec-once = [
         "dbus-update-activation-environment --systemd --all"
         "awww-daemon"
-        # Run theme-switch first so Wallpaper.json exists before noctalia-shell scans schemes
-        "bash -c '$HOME/OSConfig/scripts/theme-switch.sh'"
-        "bash -c 'sleep 2 && QS_CONFIG_PATH=/home/gavri/Code/GavBar noctalia-shell'"
-        # Re-run noctalia after GavBar initializes: startup ColorSchemeService overwrites colors.json
-        # with the predefined scheme ~2s after launch; this runs after that to apply wallpaper colors.
-        "bash -c 'sleep 5 && $HOME/OSConfig/theme-hooks/noctalia.sh'"
-        # Lock the session immediately after GavBar is up. With greetd autologin,
-        # this is what the user actually sees at boot — the "login screen".
-        "bash -c 'sleep 4 && QS_CONFIG_PATH=/home/gavri/Code/GavBar noctalia-shell msg lock toggle'"
+        # Theme pipeline runs first; noctalia.service waits on its completion via Requires=.
+        "bash -c '$HOME/OSConfig/theming/theme-switch.sh'"
         "nm-applet"
         "eww daemon"
+        # GavBar (noctalia-shell), the post-startup theme re-apply, and the boot
+        # lock are managed as systemd user services — see below.
       ];
 
       general = {
@@ -175,7 +170,7 @@ in
         "$mod, P, pseudo"
         "$mod, J, layoutmsg, togglesplit"
         "$mod, Escape, exec, wlogout"
-        "$mod SHIFT, W, exec, $HOME/OSConfig/scripts/theme-switch.sh --next"
+        "$mod SHIFT, W, exec, $HOME/OSConfig/theming/theme-switch.sh --next"
         "$mod SHIFT, S, exec, hyprshot -m region"
         # Volume
         ", XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
@@ -194,8 +189,8 @@ in
         "$mod, 3, workspace, 3"
         "$mod, 4, workspace, 4"
         "$mod, 5, workspace, 5"
-        "$mod, 0, exec, $HOME/OSConfig/scripts/toggle-home.sh"
-        "$mod, D, exec, $HOME/OSConfig/scripts/toggle-home.sh"
+        "$mod, 0, exec, $HOME/OSConfig/home-workspace/toggle-home.sh"
+        "$mod, D, exec, $HOME/OSConfig/home-workspace/toggle-home.sh"
         # Move window to workspace
         "$mod SHIFT, 1, movetoworkspace, 1"
         "$mod SHIFT, 2, movetoworkspace, 2"
@@ -278,6 +273,58 @@ in
       "video/webm"       = myApps.video;
       "video/quicktime"  = myApps.video;
     };
+  };
+
+  # ── Noctalia/GavBar startup chain ───────────────────────────────────────────
+  # Replaces the old `sleep 2 && noctalia-shell; sleep 5 && noctalia.sh; sleep 4 &&
+  # noctalia-shell msg lock toggle` chain in Hyprland exec-once. Three units:
+  #   1. noctalia-shell.service: the GavBar process, restarted on failure.
+  #   2. noctalia-theme-reapply.service: re-applies wallpaper colors after
+  #      noctalia's ColorSchemeService overwrites colors.json at startup.
+  #   3. noctalia-lock.service: locks the session on boot — with greetd autologin,
+  #      this is the de-facto login screen.
+  # Small sleeps remain inside the oneshots because noctalia-shell exposes no
+  # readiness signal (no sd_notify, no advertised socket path we can probe).
+  systemd.user.services.noctalia-shell = {
+    Unit = {
+      Description = "GavBar / noctalia-shell";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+    };
+    Service = {
+      Environment = "QS_CONFIG_PATH=/home/gavri/Code/GavBar";
+      ExecStart = "${pkgs.bash}/bin/bash -lc 'noctalia-shell'";
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
+
+  systemd.user.services.noctalia-theme-reapply = {
+    Unit = {
+      Description = "Re-apply wallpaper colors over noctalia's predefined scheme";
+      After = [ "noctalia-shell.service" ];
+      Requires = [ "noctalia-shell.service" ];
+    };
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.bash}/bin/bash -c 'sleep 3 && ${config.home.homeDirectory}/OSConfig/theming/hooks/noctalia.sh'";
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
+
+  systemd.user.services.noctalia-lock = {
+    Unit = {
+      Description = "Lock session on boot (effective login screen)";
+      After = [ "noctalia-shell.service" ];
+      Requires = [ "noctalia-shell.service" ];
+    };
+    Service = {
+      Type = "oneshot";
+      Environment = "QS_CONFIG_PATH=/home/gavri/Code/GavBar";
+      ExecStart = "${pkgs.bash}/bin/bash -lc 'sleep 2 && noctalia-shell msg lock toggle'";
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
   };
 
   # ── Mako (notifications) ────────────────────────────────────────────────────
