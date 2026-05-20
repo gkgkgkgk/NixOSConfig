@@ -96,7 +96,7 @@ in
 
   dconf.settings = {
     "org/cinnamon/desktop/applications/terminal" = {
-      exec = "ghostty"
+      exec = "ghostty";
       exec-arg = "-e";
     };
   };
