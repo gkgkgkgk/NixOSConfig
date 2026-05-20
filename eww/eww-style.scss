@@ -50,3 +50,52 @@
 .graph.ram-col {
   color: $subtle;
 }
+
+// ── Photo caption (home-workspace top-right) ─────────────────────────────────
+// Wallpaper-agnostic readability: fixed white text plus a double-layer dark
+// drop shadow (a tight 1–2px crisper + a wider blurred halo) so it stays
+// legible on both bright and dark photos. Hierarchy comes from size and
+// opacity, not theme-derived hues that would blend with the wallpaper.
+.photo-caption {
+  font-family: "Inter", "JetBrainsMono Nerd Font Mono";
+  padding: 18px 22px;
+}
+
+.photo-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 8),
+    0 0 14px rgba(0, 0, 0, 0.5);
+  margin-bottom: 4px;
+}
+
+.photo-loc {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 1),
+    0 0 12px rgba(0, 0, 0, 0.85);
+  margin-bottom: 8px;
+}
+
+.photo-coord {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 1px;
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 1),
+    0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+.photo-date {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 1),
+    0 0 10px rgba(0, 0, 0, 0.8);
+}

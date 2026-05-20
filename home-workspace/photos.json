@@ -1,0 +1,72 @@
+{
+  "ac-1.jpg": {
+    "title": "Wailea Beach",
+    "location": "Maui, Hawaii, USA",
+    "lat": 20.68107,
+    "lng": -156.44346,
+    "visited": "2025-05-11"
+  },
+  "DSC01987.jpg": {
+    "title": "Ventisquero Colgante",
+    "location": "Queulat National Park, Chile",
+    "lat": -44.48440,
+    "lng": -72.54390,
+    "visited": "2023-01-08"
+  },
+  "DSCF3281.JPG": {
+    "title": "Rialto Beach",
+    "location": "Olympic National Park, Washington, USA",
+    "lat": 47.92090,
+    "lng": -124.63730,
+    "visited": "2022-08-22"
+  },
+  "DSCF4086.JPG": {
+    "title": "Fern Canyon",
+    "location": "Redwood National Park, California, USA",
+    "lat": 41.40190,
+    "lng": -124.06390,
+    "visited": "2023-08-23"
+  },
+  "DSCF4754.JPG": {
+    "title": "Horseshoe Bend",
+    "location": "Page, Arizona, USA",
+    "lat": 36.87910,
+    "lng": -111.51040,
+    "visited": "2025-02-17"
+  },
+  "gc-1.jpg": {
+    "title": "The Grand Canyon",
+    "location": "Grand Canyon National Park, Arizona, USA",
+    "lat": 36.05440,
+    "lng": -112.14010,
+    "visited": "2025-02-19"
+  },
+  "IMG20230109203416.jpg": {
+    "title": "Cerro Castillo",
+    "location": "Cerro Castillo National Park, Chile",
+    "lat": -46.08330,
+    "lng": -72.15000,
+    "visited": "2023-01-09"
+  },
+  "PXL_20250505_045233780.RAW-01.COVER.jpg": {
+    "title": "Mauna Kea Observatories",
+    "location": "Mauna Kea, Hawaii, USA",
+    "lat": 19.82242,
+    "lng": -155.47072,
+    "visited": "2025-05-04"
+  },
+  "PXL_20260430_105236737.PANO-EDIT.jpg": {
+    "title": "Manarola",
+    "location": "Cinque Terre, Italy",
+    "lat": 44.10670,
+    "lng": 9.72810,
+    "visited": "2026-04-30"
+  },
+  "IMG20231121143249_01~4.jpg": {
+    "title": "Svörtuloft Lighthouse",
+    "location": "Snæfellsnes Peninsula, Iceland",
+    "lat": 64.825531,
+    "lng": -23.825233,
+    "visited": "2023-11-21"
+  }
+}

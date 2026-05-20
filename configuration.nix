@@ -14,6 +14,10 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
+  # NTFS read/write support (for the Windows partition on nvme0n1p3 etc.)
+  # Pulls in ntfs-3g so udisks2/Nemo can mount NTFS volumes.
+  boot.supportedFilesystems = [ "ntfs" ];
+
   networking.hostName = "nixos"; # Define your hostname.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
   networking.networkmanager.wifi.powersave = false;
@@ -60,6 +64,7 @@
 
   # Hyprland
   programs.hyprland.enable = true;
+  programs.dconf.enable = true;
 
   # Configure keymap in X11
   services.xserver.xkb = {

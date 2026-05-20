@@ -1,0 +1,11 @@
+# Nix build output symlinks
+result
+result-*
+
+# direnv
+.direnv/
+
+# editor / OS cruft
+*.swp
+*~
+.DS_Store

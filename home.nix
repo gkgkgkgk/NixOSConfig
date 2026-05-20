@@ -41,6 +41,16 @@ in
     nerd-fonts.geist-mono
     imagemagick
     nemo-with-extensions
+    # Provides the org.cinnamon.desktop.default-applications.terminal gsettings
+    # schema that Nemo reads for "Open in Terminal". Note: installing it here is
+    # necessary but NOT sufficient — its schema dir must also be on XDG_DATA_DIRS,
+    # done via xdg.systemDirs.data below. Without that, Nemo falls back to a
+    # hard-coded terminal list (which lacks Ghostty) and fails silently.
+    cinnamon-desktop
+    # Polkit agent — without one running, GUI mount requests from Nemo/udisks2
+    # bounce back as "not authorized" because there's nothing to display the
+    # password prompt to.
+    hyprpolkitagent
     cifs-utils
     sioyek
     imv
@@ -72,6 +82,32 @@ in
     enable = true;
     platformTheme.name = "kde";  # Sioyek (and any future Qt app) reads kdeglobals via this
   };
+
+  # Interactive bash. shellAliases lands in ~/.bashrc which Ghostty's
+  # shell-integration sources even under --posix.
+  programs.bash = {
+    enable = true;
+    shellAliases = {
+      # macOS-style: type `open foo.pdf` in any terminal to launch the file
+      # in its xdg.mimeApps default app. Backgrounded so the shell isn't held.
+      open = "xdg-open";
+    };
+  };
+
+  dconf.settings = {
+    "org/cinnamon/desktop/applications/terminal" = {
+      exec = "ghostty"
+      exec-arg = "-e";
+    };
+  };
+
+  # cinnamon-desktop ships its gsettings schema under a non-standard subdir
+  # (share/gsettings-schemas/cinnamon-desktop-<ver>/), which home.packages does
+  # NOT add to XDG_DATA_DIRS. Without this, glib can't load the schema and Nemo
+  # silently falls back to its hard-coded terminal list (which lacks Ghostty).
+  xdg.systemDirs.data = [
+    "${pkgs.cinnamon-desktop}/share/gsettings-schemas/cinnamon-desktop-${pkgs.cinnamon-desktop.version}"
+  ];
 
   # ── Hyprland ────────────────────────────────────────────────────────────────
   wayland.windowManager.hyprland = {
@@ -273,6 +309,24 @@ in
       "video/webm"       = myApps.video;
       "video/quicktime"  = myApps.video;
     };
+  };
+
+  # ── Polkit authentication agent ─────────────────────────────────────────────
+  # Wakes up alongside the graphical session so GUI privilege prompts (mounting
+  # disks in Nemo, password prompts from any pkexec'd tool, etc.) have somewhere
+  # to render.
+  systemd.user.services.hyprpolkitagent = {
+    Unit = {
+      Description = "Hyprland Polkit Authentication Agent";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent";
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
   };
 
   # ── Noctalia/GavBar startup chain ───────────────────────────────────────────

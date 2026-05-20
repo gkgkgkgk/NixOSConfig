@@ -22,6 +22,11 @@
 (defpoll ram-graph    :interval "1s"   :initial ""
   `python3 $HOME/.config/eww/scripts/braille.py ram "$($HOME/.config/eww/scripts/ram.sh pct)" 20 2`)
 
+;; Photo caption — looks up the current wallpaper in photos.json
+(defpoll photo-meta   :interval "2s"
+  :initial '{"title":"","location":"","coord":"","visited":""}'
+  `python3 $HOME/OSConfig/home-workspace/photo-meta.py`)
+
 ;;; ──── Widgets ────────────────────────────────────────────────────────────────
 (defwidget stat-header [lbl val dim]
   (box :orientation "h" :space-evenly false
@@ -29,6 +34,13 @@
     (box :hexpand true)
     (label :class "sec-dim"   :text dim)
     (label :class "sec-val"   :text val)))
+
+(defwidget photo-caption-widget []
+  (box :orientation "v" :space-evenly false :spacing 2 :class "photo-caption"
+    (label :class "photo-title" :text "${photo-meta.title}"    :xalign 1 :wrap true)
+    (label :class "photo-loc"   :text "${photo-meta.location}" :xalign 1)
+    (label :class "photo-coord" :text "${photo-meta.coord}"    :xalign 1)
+    (label :class "photo-date"  :text "${photo-meta.visited}"  :xalign 1)))
 
 (defwidget dashboard-widget []
   (box :orientation "v" :space-evenly false :spacing 12
@@ -52,3 +64,10 @@
   :layer "bottom"
   :exclusive false
   (dashboard-widget))
+
+(defwindow photo-caption
+  :monitor 0
+  :geometry (geometry :x "15px" :y "65px" :width "320px" :anchor "top right")
+  :layer "bottom"
+  :exclusive false
+  (photo-caption-widget))

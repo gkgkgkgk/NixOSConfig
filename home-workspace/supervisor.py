@@ -24,6 +24,8 @@ DASHBOARD_LEFT_X = 10
 DASHBOARD_BOTTOM_MARGIN = 10
 POSITION_POLL_SECONDS = 5
 CURSOR_POLL_SECONDS = 0.1
+# Eww windows shown only when the home workspace is active.
+HOME_EWW_WINDOWS = ["dashboard", "photo-caption"]
 
 
 # ── Hyprland helpers ─────────────────────────────────────────────────────────
@@ -76,9 +78,10 @@ def next_empty_workspace() -> int:
     return n
 
 
-def set_dashboard_widget(workspace_id: int) -> None:
+def set_home_widgets(workspace_id: int) -> None:
     action = "open" if workspace_id == HOME_WS else "close"
-    subprocess.run(["eww", action, "dashboard"], capture_output=True)
+    for window in HOME_EWW_WINDOWS:
+        subprocess.run(["eww", action, window], capture_output=True)
 
 
 # ── Event handlers ───────────────────────────────────────────────────────────
@@ -86,7 +89,7 @@ def handle_event(event: str, payload: str) -> None:
     if event == "workspacev2":
         ws_id_str = payload.split(",", 1)[0]
         try:
-            set_dashboard_widget(int(ws_id_str))
+            set_home_widgets(int(ws_id_str))
         except ValueError:
             pass
 
@@ -204,7 +207,7 @@ async def main() -> None:
 
     aw = hypr_json("activeworkspace") or {}
     if "id" in aw:
-        set_dashboard_widget(aw["id"])
+        set_home_widgets(aw["id"])
 
     await asyncio.gather(
         event_listener(),
