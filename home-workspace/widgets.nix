@@ -10,8 +10,8 @@
       match:class = ^com\.local\.dashboard-term$
       workspace = 10 silent
       float = true
-      size = 500 320
-      move = 10 100%-385
+      size = 750 480
+      move = 20 100%-580
       opacity = 0.88 0.78
     }
   '';

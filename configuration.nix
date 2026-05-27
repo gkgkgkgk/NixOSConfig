@@ -52,18 +52,29 @@
   services.xserver.enable = true;
 
   # Autologin via greetd. No greeter UI shown — Hyprland starts directly as
-  # gavri, and the exec-once in home.nix immediately fires the GavBar lockscreen.
-  # This makes the lock-with-PIN flow effectively the "login screen".
+  # gavri, and the noctalia-lock.service in home.nix immediately fires the GavBar
+  # lockscreen. That lockscreen (unlocked with the normal system password) is the
+  # effective "login screen".
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "Hyprland";
+      # Launch via Hyprland's own `start-hyprland` session wrapper, NOT the bare
+      # `Hyprland` binary. The wrapper sets up the session environment that the
+      # systemd user units (GavBar, lock, polkit) need; launching bare Hyprland
+      # skipped it, producing the "started without start-hyprland" warning and a
+      # boot where the desktop came up with no working Wayland/DBus environment.
+      command = "start-hyprland";
       user = "gavri";
     };
   };
 
-  # Hyprland
+  # Hyprland. UWSM is disabled so there is a single session manager:
+  # home-manager's systemd integration (wayland.windowManager.hyprland.systemd)
+  # imports the environment and starts hyprland-session.target before the
+  # graphical-session.target user units run. With UWSM on, its session machinery
+  # competed with home-manager's, which is what made startup racy.
   programs.hyprland.enable = true;
+  programs.hyprland.withUWSM = false;
   programs.dconf.enable = true;
 
   # Configure keymap in X11
@@ -124,7 +135,6 @@
     vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
     wget
     git
-    ghostty
     vscode
     claude-code
     blender
@@ -137,7 +147,16 @@
     gimp
     hyprshot
     fastfetch
+    obs-studio
+    zoom-us
   ];
+
+  xdg.portal = {
+    enable = true;
+    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+  };
+
+  services.xserver.excludePackages = with pkgs; [ xterm ];
 
   fonts = {
     packages = with pkgs; [
@@ -154,26 +173,11 @@
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.greetd.enableGnomeKeyring = true;
 
-  # Lockscreen PIN — verifies the PIN hash stored in /etc/noctalia-pin-hash.
-  # Falls back to the system password if the PIN doesn't match.
-  # Set/change your PIN after rebuild: openssl passwd -6 | sudo tee /etc/noctalia-pin-hash && sudo chmod 600 /etc/noctalia-pin-hash
-  environment.etc."noctalia-check-pin" = {
-    mode = "0755";
-    text = ''
-      #!/bin/sh
-      read -r pin
-      [ -f /etc/noctalia-pin-hash ] || exit 1
-      stored=$(cat /etc/noctalia-pin-hash)
-      salt=$(printf '%s' "$stored" | cut -d: -f1)
-      expected=$(printf '%s' "$stored" | cut -d: -f2)
-      [ -z "$salt" ] && exit 1
-      actual=$(printf '%s%s' "$salt" "$pin" | sha512sum | cut -d' ' -f1)
-      [ "$actual" = "$expected" ]
-    '';
-  };
-
+  # PAM service the GavBar lockscreen authenticates against (NOCTALIA_PAM_SERVICE
+  # in home.nix points here). Plain system-password auth via pam_unix — no custom
+  # PIN logic. Set the password (use a short numeric one if you want a "PIN"):
+  #   passwd
   security.pam.services.noctalia-lock.text = ''
-    auth sufficient pam_exec.so expose_authtok quiet /etc/noctalia-check-pin
     auth required pam_unix.so nullok
     account required pam_permit.so
     session required pam_permit.so

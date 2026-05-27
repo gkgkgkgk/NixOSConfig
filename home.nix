@@ -59,6 +59,8 @@ in
     glib                # provides the `gsettings` CLI used by theme-hooks/gtk.sh
   ];
 
+  programs.ghostty.enable = true;
+
   # Two theme directories symlinked to the same Adwaita-dark source.
   # theme-hooks/gtk.sh alternates gsettings between these two names to
   # invalidate GTK3's CSS cache without changing what the user actually sees.
@@ -124,6 +126,12 @@ in
 
       # Dashboard-term windowrule + systemd service live in
       # ./home-workspace/widgets.nix (imported above).
+
+      # Per-monitor resolution/refresh-rate chosen in GavBar's Display settings
+      # is written here by home-workspace/set-monitor.sh. Sourced last so a named
+      # rule overrides the catch-all `monitor = ,preferred,auto,auto` above, and
+      # it persists across reboots without needing a rebuild.
+      source = ~/.config/hypr/monitors.conf
     '';
     settings = {
       monitor = ",preferred,auto,auto";
@@ -138,7 +146,10 @@ in
       ];
 
       exec-once = [
-        "dbus-update-activation-environment --systemd --all"
+        # NOTE: no dbus-update-activation-environment here — home-manager's
+        # hyprland systemd integration already imports the environment and starts
+        # hyprland-session.target as its own (ordered) exec-once. A second import
+        # ran concurrently and raced the session services.
         "awww-daemon"
         # Theme pipeline runs first; noctalia.service waits on its completion via Requires=.
         "bash -c '$HOME/OSConfig/theming/theme-switch.sh'"
@@ -207,7 +218,7 @@ in
         "$mod, J, layoutmsg, togglesplit"
         "$mod, Escape, exec, wlogout"
         "$mod SHIFT, W, exec, $HOME/OSConfig/theming/theme-switch.sh --next"
-        "$mod SHIFT, S, exec, hyprshot -m region"
+        "$mod SHIFT, S, exec, hyprshot -m region --clipboard-only"
         # Volume
         ", XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
         ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
@@ -219,21 +230,18 @@ in
         "$mod, right, movefocus, r"
         "$mod, up,    movefocus, u"
         "$mod, down,  movefocus, d"
-        # Workspaces
-        "$mod, 1, workspace, 1"
-        "$mod, 2, workspace, 2"
-        "$mod, 3, workspace, 3"
-        "$mod, 4, workspace, 4"
-        "$mod, 5, workspace, 5"
-        "$mod, 0, exec, $HOME/OSConfig/home-workspace/toggle-home.sh"
+        # Home workspace toggle (number-based workspace shortcuts removed on purpose).
         "$mod, D, exec, $HOME/OSConfig/home-workspace/toggle-home.sh"
-        # Move window to workspace
-        "$mod SHIFT, 1, movetoworkspace, 1"
-        "$mod SHIFT, 2, movetoworkspace, 2"
-        "$mod SHIFT, 3, movetoworkspace, 3"
-        "$mod SHIFT, 4, movetoworkspace, 4"
-        "$mod SHIFT, 5, movetoworkspace, 5"
-        "$mod SHIFT, 0, movetoworkspace, 10"
+        # Workspace navigation — routed through GavBar so it follows the same
+        # (drag-reorderable) order as the alt-tab switcher. left=prev, right=next.
+        "$mod ALT, left,  global, gavbar:wsSwitchPrev"
+        "$mod ALT, right, global, gavbar:wsSwitchNext"
+        # Move the focused window to the prev/next workspace (same order).
+        "$mod CTRL, left,  global, gavbar:wsMovePrev"
+        "$mod CTRL, right, global, gavbar:wsMoveNext"
+        # GavBar alt-tab workspace switcher: hold Alt, tap Tab to cycle, release Alt to switch
+        "ALT, Tab, global, gavbar:altTabNext"
+        "ALT SHIFT, Tab, global, gavbar:altTabPrev"
       ];
 
       # Super alone (on release) toggles GavBar launcher
@@ -273,10 +281,14 @@ in
     categories = [ "System" "TerminalEmulator" ];
   };
 
-  # Hide the original Ghostty entry — only "Terminal" above should appear
+  # Hide the original Ghostty entry — only "Terminal" above should appear.
+  # The icon must stay set: the alt-tab switcher resolves windows by class
+  # (com.mitchellh.ghostty) to THIS entry, so without an icon it falls back to a
+  # generic glyph. The launcher is unaffected (it lists the "Terminal" entry).
   xdg.desktopEntries."com.mitchellh.ghostty" = {
     name = "Ghostty";
     exec = "ghostty";
+    icon = "com.mitchellh.ghostty";
     noDisplay = true;
   };
 
@@ -286,6 +298,15 @@ in
     icon = "system-file-manager";
     terminal = false;
     categories = [ "System" "FileManager" ];
+  };
+
+  # Hide the upstream nemo.desktop (Name=Files) so only "File Explorer" above
+  # shows in the launcher. NoDisplay does not affect mime dispatch, so the
+  # xdg.mimeApps default (inode/directory = nemo.desktop) keeps working.
+  xdg.desktopEntries.nemo = {
+    name = "Files";
+    exec = "nemo %U";
+    noDisplay = true;
   };
 
   xdg.mimeApps = {
@@ -336,7 +357,7 @@ in
   #   2. noctalia-theme-reapply.service: re-applies wallpaper colors after
   #      noctalia's ColorSchemeService overwrites colors.json at startup.
   #   3. noctalia-lock.service: locks the session on boot — with greetd autologin,
-  #      this is the de-facto login screen.
+  #      this is the de-facto login screen (unlocked with the system password).
   # Small sleeps remain inside the oneshots because noctalia-shell exposes no
   # readiness signal (no sd_notify, no advertised socket path we can probe).
   systemd.user.services.noctalia-shell = {
@@ -357,7 +378,7 @@ in
   systemd.user.services.noctalia-theme-reapply = {
     Unit = {
       Description = "Re-apply wallpaper colors over noctalia's predefined scheme";
-      After = [ "noctalia-shell.service" ];
+      After = [ "graphical-session.target" "noctalia-shell.service" ];
       Requires = [ "noctalia-shell.service" ];
     };
     Service = {
@@ -370,13 +391,19 @@ in
   systemd.user.services.noctalia-lock = {
     Unit = {
       Description = "Lock session on boot (effective login screen)";
-      After = [ "noctalia-shell.service" ];
+      After = [ "graphical-session.target" "noctalia-shell.service" ];
       Requires = [ "noctalia-shell.service" ];
     };
     Service = {
       Type = "oneshot";
       Environment = "QS_CONFIG_PATH=/home/gavri/Code/GavBar";
-      ExecStart = "${pkgs.bash}/bin/bash -lc 'sleep 2 && noctalia-shell msg lock toggle'";
+      # The IPC target is `lockScreen` with function `lock` (idempotent: no-ops if
+      # already locked) — the old `lock toggle` hit a non-existent target ("Target
+      # not found"). noctalia-shell exposes no readiness signal and `msg` exits 0
+      # even on failure, so poll: `msg` prints an error to stdout/stderr when the
+      # instance/target isn't ready yet, and prints nothing on success. Retry until
+      # the output is empty (= the lock actually fired), capped at ~60s.
+      ExecStart = "${pkgs.bash}/bin/bash -lc 'for i in $(seq 1 120); do out=$(noctalia-shell msg lockScreen lock 2>&1); [ -z \"$out\" ] && exit 0; sleep 0.5; done'";
     };
     Install.WantedBy = [ "graphical-session.target" ];
   };
