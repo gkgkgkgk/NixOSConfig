@@ -57,6 +57,16 @@ in
     mpv
     gnome-themes-extra  # provides Adwaita-dark on disk for the Tick/Tock symlinks
     glib                # provides the `gsettings` CLI used by theme-hooks/gtk.sh
+
+    # Terminal launcher for Nemo's "Open in Terminal". Nemo launches the
+    # configured terminal through GIO, which resolves the bare name `ghostty`
+    # to ghostty's running GApplication and routes the request over D-Bus to
+    # it — so the new window opens in the *running* instance's directory
+    # ($HOME) instead of the folder Nemo set as the spawn cwd. Pointing the
+    # terminal at this wrapper (a plain script with no app-id) makes GIO
+    # spawn it directly; the child ghostty then honors gtk-single-instance=false
+    # and opens a fresh window in the inherited launch directory.
+    (writeShellScriptBin "ghostty-here" ''exec ${ghostty}/bin/ghostty "$@"'')
   ];
 
   programs.ghostty.enable = true;
@@ -96,9 +106,12 @@ in
     };
   };
 
+  # Nemo reads the terminal from the schema org.cinnamon.desktop.default-applications.terminal,
+  # whose dconf *path* is /org/cinnamon/desktop/applications/terminal/ (no "default-").
+  # See ghostty-here in home.packages for why this points at a wrapper, not bare ghostty.
   dconf.settings = {
     "org/cinnamon/desktop/applications/terminal" = {
-      exec = "ghostty";
+      exec = "ghostty-here";
       exec-arg = "-e";
     };
   };
@@ -122,6 +135,15 @@ in
         float = true
         size = 900 540
         move = 64% 4%
+      }
+
+      # Nemo: translucent window (frosted with the bar's blur behind it) so the
+      # file explorer matches Ghostty's transparency. Color comes from the GTK
+      # hook (theming/hooks/gtk.sh) which sets the background to the wallpaper BG.
+      windowrule {
+        name = nemo-opacity
+        match:class = [Nn]emo
+        opacity = 0.85
       }
 
       # Dashboard-term windowrule + systemd service live in
