@@ -148,7 +148,6 @@
     hyprshot
     fastfetch
     obs-studio
-    zoom-us
   ];
 
   xdg.portal = {
