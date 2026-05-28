@@ -145,6 +145,7 @@
     hyprshot
     fastfetch
     obs-studio
+    gcalcli
   ];
 
   xdg.portal = {
