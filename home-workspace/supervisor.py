@@ -24,8 +24,18 @@ DASHBOARD_LEFT_X = 20
 DASHBOARD_BOTTOM_MARGIN = 100
 POSITION_POLL_SECONDS = 5
 CURSOR_POLL_SECONDS = 0.1
+# How long the cursor/position loops idle while the home workspace is NOT
+# focused. Their work (focus-stealing off the dashboard-term, snapping it back
+# after a drag) is only meaningful when you're actually looking at workspace 10,
+# so off-workspace we just sleep instead of spawning hyprctl ~20x/sec.
+IDLE_POLL_SECONDS = 0.5
 # Eww windows shown only when the home workspace is active.
 HOME_EWW_WINDOWS = ["dashboard", "photo-caption"]
+
+# Tracks the focused workspace so the polling loops can cheaply skip work when
+# we're not on the home workspace. Updated from workspacev2 events (and seeded
+# once at startup) — no polling required to maintain it.
+current_ws: Optional[int] = None
 
 
 # ── Hyprland helpers ─────────────────────────────────────────────────────────
@@ -87,9 +97,11 @@ def set_home_widgets(workspace_id: int) -> None:
 # ── Event handlers ───────────────────────────────────────────────────────────
 def handle_event(event: str, payload: str) -> None:
     if event == "workspacev2":
+        global current_ws
         ws_id_str = payload.split(",", 1)[0]
         try:
-            set_home_widgets(int(ws_id_str))
+            current_ws = int(ws_id_str)
+            set_home_widgets(current_ws)
         except ValueError:
             pass
 
@@ -152,6 +164,12 @@ async def cursor_loop() -> None:
     only if another window on workspace 10 exists as a focus target."""
     was_inside = False
     while True:
+        # Only meaningful while viewing the home workspace; otherwise idle
+        # without touching hyprctl at all.
+        if current_ws != HOME_WS:
+            was_inside = False
+            await asyncio.sleep(IDLE_POLL_SECONDS)
+            continue
         d = find_dashboard()
         if d:
             tx, ty = d["at"]
@@ -187,6 +205,10 @@ async def position_loop() -> None:
     """Snap dashboard-term back to its locked geometry on a slow tick (catches drags)."""
     while True:
         await asyncio.sleep(POSITION_POLL_SECONDS)
+        # Manual drags only happen while viewing ws10; skip the clients query
+        # otherwise. openwindow/movewindow events still re-snap on their own.
+        if current_ws != HOME_WS:
+            continue
         d = find_dashboard()
         if not d:
             continue
@@ -205,8 +227,10 @@ async def main() -> None:
             break
         await asyncio.sleep(0.2)
 
+    global current_ws
     aw = hypr_json("activeworkspace") or {}
     if "id" in aw:
+        current_ws = aw["id"]
         set_home_widgets(aw["id"])
 
     await asyncio.gather(

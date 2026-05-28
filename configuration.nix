@@ -47,9 +47,9 @@
     LC_TIME = "en_US.UTF-8";
   };
 
-  # Enable the X11 windowing system.
-  # You can disable this if you're only using the Wayland session.
-  services.xserver.enable = true;
+  # No X11 server — this is a pure Wayland (Hyprland) session. XWayland support
+  # for legacy apps (Steam, etc.) comes from programs.hyprland's bundled
+  # xwayland, not from services.xserver.
 
   # Autologin via greetd. No greeter UI shown — Hyprland starts directly as
   # gavri, and the noctalia-lock.service in home.nix immediately fires the GavBar
@@ -77,11 +77,8 @@
   programs.hyprland.withUWSM = false;
   programs.dconf.enable = true;
 
-  # Configure keymap in X11
-  services.xserver.xkb = {
-    layout = "us";
-    variant = "";
-  };
+  # Keyboard layout is set in Hyprland (home.nix: input.kb_layout). No X11
+  # keymap config needed without services.xserver.
 
   # Enable CUPS to print documents.
   services.printing.enable = true;
@@ -154,8 +151,6 @@
     enable = true;
     extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
   };
-
-  services.xserver.excludePackages = with pkgs; [ xterm ];
 
   fonts = {
     packages = with pkgs; [

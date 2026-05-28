@@ -374,14 +374,19 @@ in
 
   # ── Noctalia/GavBar startup chain ───────────────────────────────────────────
   # Replaces the old `sleep 2 && noctalia-shell; sleep 5 && noctalia.sh; sleep 4 &&
-  # noctalia-shell msg lock toggle` chain in Hyprland exec-once. Three units:
+  # noctalia-shell msg lock toggle` chain in Hyprland exec-once. Two units:
   #   1. noctalia-shell.service: the GavBar process, restarted on failure.
-  #   2. noctalia-theme-reapply.service: re-applies wallpaper colors after
-  #      noctalia's ColorSchemeService overwrites colors.json at startup.
-  #   3. noctalia-lock.service: locks the session on boot — with greetd autologin,
+  #   2. noctalia-lock.service: locks the session on boot — with greetd autologin,
   #      this is the de-facto login screen (unlocked with the system password).
-  # Small sleeps remain inside the oneshots because noctalia-shell exposes no
+  # Small sleeps remain inside the lock oneshot because noctalia-shell exposes no
   # readiness signal (no sd_notify, no advertised socket path we can probe).
+  #
+  # Color theming: colors.json is owned solely by the theming pipeline
+  # (theming/hooks/noctalia.sh, run by theme-switch.sh). NOCTALIA_EXTERNAL_COLORS=1
+  # tells GavBar's ColorSchemeService to never write colors.json, so it no longer
+  # clobbers our wallpaper colors with its predefined scheme at startup. This
+  # retired the old noctalia-theme-reapply.service, which existed only to re-stamp
+  # our colors 3s after that clobber.
   systemd.user.services.noctalia-shell = {
     Unit = {
       Description = "GavBar / noctalia-shell";
@@ -389,23 +394,13 @@ in
       After = [ "graphical-session.target" ];
     };
     Service = {
-      Environment = "QS_CONFIG_PATH=/home/gavri/Code/GavBar";
+      Environment = [
+        "QS_CONFIG_PATH=/home/gavri/Code/GavBar"
+        "NOCTALIA_EXTERNAL_COLORS=1"
+      ];
       ExecStart = "${pkgs.bash}/bin/bash -lc 'noctalia-shell'";
       Restart = "on-failure";
       RestartSec = 2;
-    };
-    Install.WantedBy = [ "graphical-session.target" ];
-  };
-
-  systemd.user.services.noctalia-theme-reapply = {
-    Unit = {
-      Description = "Re-apply wallpaper colors over noctalia's predefined scheme";
-      After = [ "graphical-session.target" "noctalia-shell.service" ];
-      Requires = [ "noctalia-shell.service" ];
-    };
-    Service = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.bash}/bin/bash -c 'sleep 3 && ${config.home.homeDirectory}/OSConfig/theming/hooks/noctalia.sh'";
     };
     Install.WantedBy = [ "graphical-session.target" ];
   };
@@ -430,16 +425,9 @@ in
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
-  # ── Mako (notifications) ────────────────────────────────────────────────────
-  services.mako = {
-    enable = true;
-    settings = {
-      default-timeout = 5000;
-      border-radius = 10;
-      margin = "10";
-      padding = "10,15";
-      max-visible = 5;
-    };
-  };
+  # NOTE: no notification daemon here. GavBar/noctalia owns
+  # org.freedesktop.Notifications on the bus, so a second daemon (mako) never
+  # binds it — it sat disabled/inactive. Notification behavior is configured in
+  # GavBar's settings.json (`notifications` key).
 
 }
