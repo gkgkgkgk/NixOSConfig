@@ -70,13 +70,30 @@ def find_dashboard() -> Optional[dict]:
 
 
 def snap_back(addr: str) -> None:
+    # Hyprland >=0.55 Lua config: dispatch payloads are evaluated as Lua, so
+    # each batched dispatch is an expression returning a dispatcher object.
+    # movetoworkspacesilent → hl.dsp.window.move({...}, { follow = false }).
+    # resizewindowpixel/movewindowpixel have no documented hl.dsp.* mapping
+    # yet; the { exact = {W, H}, window = "..." } forms are best-guess —
+    # if Hyprland rejects them, the dashboard-term still ends up on the home
+    # workspace (the silent-move succeeds) but with its previous geometry.
     mon = focused_monitor()
     ty = mon["height"] - DASHBOARD_H - DASHBOARD_BOTTOM_MARGIN
+    move_ws = (
+        f'hl.dsp.window.move({{ workspace = {HOME_WS}, '
+        f'window = "address:{addr}" }}, {{ follow = false }})'
+    )
+    resize = (
+        f'hl.dsp.window.resize({{ exact = {{ {DASHBOARD_W}, {DASHBOARD_H} }}, '
+        f'window = "address:{addr}" }})'
+    )
+    reposition = (
+        f'hl.dsp.window.move({{ exact = {{ {DASHBOARD_LEFT_X}, {ty} }}, '
+        f'window = "address:{addr}" }})'
+    )
     hypr(
         "--batch",
-        f"dispatch movetoworkspacesilent {HOME_WS},address:{addr} ; "
-        f"dispatch resizewindowpixel exact {DASHBOARD_W} {DASHBOARD_H},address:{addr} ; "
-        f"dispatch movewindowpixel exact {DASHBOARD_LEFT_X} {ty},address:{addr}",
+        f"dispatch {move_ws} ; dispatch {resize} ; dispatch {reposition}",
     )
 
 
@@ -117,7 +134,10 @@ def handle_event(event: str, payload: str) -> None:
             snap_back(addr)
         elif ws_name in (str(HOME_WS), HOME_WS_NAME):
             target = next_empty_workspace()
-            hypr("dispatch", "movetoworkspace", f"{target},address:{addr}")
+            hypr(
+                "dispatch",
+                f'hl.dsp.window.move({{ workspace = {target}, window = "address:{addr}" }})',
+            )
 
     elif event == "movewindowv2":
         # ADDRESS,WORKSPACE_ID,WORKSPACE_NAME
@@ -196,7 +216,10 @@ async def cursor_loop() -> None:
                             None,
                         )
                         if other:
-                            hypr("dispatch", "focuswindow", f"address:{other['address']}")
+                            hypr(
+                                "dispatch",
+                                f'hl.dsp.focus({{ window = "address:{other["address"]}" }})',
+                            )
                 was_inside = False
         await asyncio.sleep(CURSOR_POLL_SECONDS)
 
