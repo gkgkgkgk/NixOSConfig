@@ -34,6 +34,14 @@ def boost_saturation(r, g, b, factor=1.8, min_value=0.72):
     return int(r2 * 255), int(g2 * 255), int(b2 * 255)
 
 
+def blend(c1, c2, t):
+    return (
+        int(c1[0] + (c2[0] - c1[0]) * t),
+        int(c1[1] + (c2[1] - c1[1]) * t),
+        int(c1[2] + (c2[2] - c1[2]) * t),
+    )
+
+
 def wcag_luminance(r, g, b):
     def lin(c):
         c /= 255
@@ -104,8 +112,20 @@ def generate(image_path):
     if accent2_raw is None:
         accent2_raw = by_sat[1] if len(by_sat) > 1 else accent_raw
 
-    accent  = ensure_contrast(boost_saturation(*accent_raw,  factor=1.6), bg_raw)
-    accent2 = ensure_contrast(boost_saturation(*accent2_raw, factor=1.8), bg_raw)
+    # ACCENT is the *single* neon splash. Keep ACCENT2 for downstream consumers
+    # (KDE / eww / sioyek / hyprland) but the bar (GavBar) only uses ACCENT.
+    accent  = ensure_contrast(boost_saturation(*accent_raw,  factor=1.3),  bg_raw)
+    accent2 = ensure_contrast(boost_saturation(*accent2_raw, factor=1.8),  bg_raw)
+
+    # MUTED: a neutral chrome color derived from the wallpaper itself (BG nudged
+    # toward FG). Used for outlines / secondary surfaces / hover states in the
+    # bar, decoupling those from the loud accent.
+    muted_raw = blend(bg_raw, fg_raw, 0.28)
+
+    # OVERLAY can collide with BG when the wallpaper has no mid-tones; lift it
+    # slightly toward FG so mSurfaceVariant is always visually distinct.
+    if abs(luminance(*overlay_raw) - luminance(*bg_raw)) < 6:
+        overlay_raw = blend(bg_raw, fg_raw, 0.10)
 
     lum = luminance(*bg_raw)
     clock_text = rgb_to_hex(*fg_raw) if lum < 128 else "#1a1520"
@@ -115,6 +135,7 @@ def generate(image_path):
         "FG":         rgb_to_hex(*fg_raw),
         "ACCENT":     rgb_to_hex(*accent),
         "ACCENT2":    rgb_to_hex(*accent2),
+        "MUTED":      rgb_to_hex(*muted_raw),
         "OVERLAY":    rgb_to_hex(*overlay_raw),
         "CLOCK_TEXT": clock_text,
     }

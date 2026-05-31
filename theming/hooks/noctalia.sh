@@ -5,21 +5,24 @@ source "$HOME/.cache/theme/colors.env"
 
 mkdir -p "$HOME/.config/gavbar"
 
+# Single-splash policy: ACCENT is the only neon color. Everything that used to
+# be a second accent (mSecondary, mTertiary) or a borrowed accent (mOutline)
+# now points at MUTED — a neutral chrome derived from the wallpaper BG/FG.
 cat > "$HOME/.config/gavbar/colors.json" << EOF
 {
   "mPrimary":          "$ACCENT",
   "mOnPrimary":        "$BG",
-  "mSecondary":        "$ACCENT2",
-  "mOnSecondary":      "$BG",
-  "mTertiary":         "$ACCENT2",
-  "mOnTertiary":       "$BG",
+  "mSecondary":        "$MUTED",
+  "mOnSecondary":      "$FG",
+  "mTertiary":         "$MUTED",
+  "mOnTertiary":       "$FG",
   "mError":            "#cf6679",
   "mOnError":          "$BG",
   "mSurface":          "$BG",
   "mOnSurface":        "$FG",
   "mSurfaceVariant":   "$OVERLAY",
   "mOnSurfaceVariant": "$FG",
-  "mOutline":          "$ACCENT",
+  "mOutline":          "$MUTED",
   "mShadow":           "#000000",
   "mHover":            "$OVERLAY",
   "mOnHover":          "$FG"

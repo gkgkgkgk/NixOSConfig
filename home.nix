@@ -172,8 +172,8 @@ in
           rounding = 10;
           blur = {
             enabled = true;
-            size = 6;
-            passes = 3;
+            size = 3;
+            passes = 2;
             new_optimizations = true;
           };
           shadow = {
@@ -225,6 +225,26 @@ in
         { _args = [ "XCURSOR_SIZE"         "24" ]; }
         { _args = [ "NOCTALIA_PAM_SERVICE" "noctalia-lock" ]; }
         { _args = [ "QT_QPA_PLATFORMTHEME" "kde" ]; }
+      ];
+
+      # Layer rules. Hyprland doesn't blur Wayland layer surfaces by default —
+      # GavBar's panels live under WlrLayer.Top in the `noctalia-background-*`
+      # namespace, so without this they sit on top of the wallpaper with no
+      # backdrop blur even when GavBar's `enableBlurBehind` setting is on.
+      # ignore_alpha = 0 makes the blur still apply through GavBar's transparent
+      # padding around the rounded panel card.
+      layer_rule = [
+        {
+          name = "noctalia-blur";
+          match.namespace = "^(noctalia-background-).*";
+          blur = true;
+          # ignore_alpha skips blur where surface alpha is below this threshold.
+          # ~0.3 means: don't blur until a panel has faded in ~halfway, which makes
+          # the blur appear part-way through the panel's fade-in instead of snapping
+          # on at frame 1. Doubles as a guard against blurring residual translucent
+          # bar artifacts.
+          ignore_alpha = 0.3;
+        }
       ];
 
       # Window rules. The first two were previously written as verbatim
