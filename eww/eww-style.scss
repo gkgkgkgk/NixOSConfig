@@ -7,9 +7,15 @@
   color: $fg;
 }
 
+// GTK paints an opaque window background by default; force-clear it so the
+// widgets float directly on the wallpaper.
+window {
+  background-color: transparent;
+}
+
 // ── Sections ──────────────────────────────────────────────────────────────────
 .section {
-  background: rgba($bg, 0.9);
+  background: transparent;
   border-radius: 10px;
   padding: 15px 18px;
   border-left: 2px solid rgba($accent, 0.4);

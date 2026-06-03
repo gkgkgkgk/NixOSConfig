@@ -260,7 +260,7 @@ in
         }
         # Nemo: translucent window (frosted with the bar's blur behind it) so the
         # file explorer matches Ghostty's transparency. Color comes from the GTK
-        # hook (theming/hooks/gtk.sh) which sets the background to the wallpaper BG.
+        # hook (GavBar/Scripts/bash/theme-hooks/gtk.sh) which sets the background to the wallpaper BG.
         {
           name = "nemo-opacity";
           match.class = "[Nn]emo";
@@ -280,7 +280,9 @@ in
         { _args = [ (bindKey "mod" "P")          (lua ''hl.dsp.window.pseudo()'') ]; }
         { _args = [ (bindKey "mod" "J")          (lua ''hl.dsp.layout("togglesplit")'') ]; }
         { _args = [ (bindKey "mod" "Escape")     (exec "wlogout") ]; }
-        { _args = [ (bindKey "mod" "SHIFT + W")  (exec "$HOME/OSConfig/theming/theme-switch.sh --next") ]; }
+        # Wallpaper + theme cycle is owned by GavBar — the binding triggers its
+        # gavbar:cycleWallpaper GlobalShortcut, which runs Scripts/bash/theme-switch.sh --next.
+        { _args = [ (bindKey "mod" "SHIFT + W")  (lua ''hl.dsp.global("gavbar:cycleWallpaper")'') ]; }
         { _args = [ (bindKey "mod" "SHIFT + S")  (exec "hyprshot -m region --clipboard-only") ]; }
 
         # Volume
@@ -336,8 +338,8 @@ in
         -- starts hyprland-session.target as its own startup hook. A second
         -- import ran concurrently and raced the session services.
         hl.exec_cmd("awww-daemon")
-        -- Theme pipeline runs first; noctalia.service waits on its completion via Requires=.
-        hl.exec_cmd("bash -c '$HOME/OSConfig/theming/theme-switch.sh'")
+        -- Theme pipeline now lives inside GavBar (Scripts/bash/theme-switch.sh).
+        hl.exec_cmd("bash -c '$HOME/Code/GavBar/Scripts/bash/theme-switch.sh'")
         hl.exec_cmd("nm-applet")
         hl.exec_cmd("eww daemon")
         -- GavBar (noctalia-shell), the post-startup theme re-apply, and the
@@ -461,12 +463,11 @@ in
   # Small sleeps remain inside the lock oneshot because noctalia-shell exposes no
   # readiness signal (no sd_notify, no advertised socket path we can probe).
   #
-  # Color theming: colors.json is owned solely by the theming pipeline
-  # (theming/hooks/noctalia.sh, run by theme-switch.sh). NOCTALIA_EXTERNAL_COLORS=1
-  # tells GavBar's ColorSchemeService to never write colors.json, so it no longer
-  # clobbers our wallpaper colors with its predefined scheme at startup. This
-  # retired the old noctalia-theme-reapply.service, which existed only to re-stamp
-  # our colors 3s after that clobber.
+  # Color theming: colors.json is owned solely by the theme pipeline that now
+  # lives inside GavBar (Scripts/bash/theme-hooks/gavbar.sh, run by theme-switch.sh).
+  # GavBar's noctalia-derived ColorSchemeService has been stripped, so there is
+  # no longer anything in the shell that writes colors.json — hence no need for
+  # NOCTALIA_EXTERNAL_COLORS and no need for the old noctalia-theme-reapply unit.
   systemd.user.services.noctalia-shell = {
     Unit = {
       Description = "GavBar / noctalia-shell";
@@ -476,7 +477,6 @@ in
     Service = {
       Environment = [
         "QS_CONFIG_PATH=/home/gavri/Code/GavBar"
-        "NOCTALIA_EXTERNAL_COLORS=1"
       ];
       ExecStart = "${pkgs.bash}/bin/bash -lc 'noctalia-shell'";
       Restart = "on-failure";
