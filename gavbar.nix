@@ -1,7 +1,7 @@
 { pkgs, inputs, ... }:
 {
   environment.systemPackages = [
-    inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
+    inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.default
     pkgs.kdePackages.kirigami
   ];
 

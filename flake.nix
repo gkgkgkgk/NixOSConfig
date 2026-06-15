@@ -7,8 +7,8 @@
             url = "github:nix-community/home-manager";
             inputs.nixpkgs.follows = "nixpkgs";
         };
-        noctalia = {
-          url = "github:noctalia-dev/noctalia-shell";
+        quickshell = {
+          url = "github:noctalia-dev/noctalia-qs";
           inputs.nixpkgs.follows = "nixpkgs";
         };
     };
@@ -26,9 +26,8 @@
                     home-manager.useUserPackages = true;
                     home-manager.backupFileExtension = "backup";
                     home-manager.users.gavri = import ./home.nix;
-                    home-manager.sharedModules = [ inputs.noctalia.homeModules.default ];
                 }
-                ./noctalia.nix
+                ./gavbar.nix
             ];
         };
     };

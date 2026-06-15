@@ -52,7 +52,7 @@
   # xwayland, not from services.xserver.
 
   # Autologin via greetd. No greeter UI shown — Hyprland starts directly as
-  # gavri, and the noctalia-lock.service in home.nix immediately fires the GavBar
+  # gavri, and the gavbar-lock.service in home.nix immediately fires the GavBar
   # lockscreen. That lockscreen (unlocked with the normal system password) is the
   # effective "login screen".
   services.greetd = {
@@ -168,11 +168,11 @@
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.greetd.enableGnomeKeyring = true;
 
-  # PAM service the GavBar lockscreen authenticates against (NOCTALIA_PAM_SERVICE
+  # PAM service the GavBar lockscreen authenticates against (GAVBAR_PAM_SERVICE
   # in home.nix points here). Plain system-password auth via pam_unix — no custom
   # PIN logic. Set the password (use a short numeric one if you want a "PIN"):
   #   passwd
-  security.pam.services.noctalia-lock.text = ''
+  security.pam.services.gavbar-lock.text = ''
     auth required pam_unix.so nullok
     account required pam_permit.so
     session required pam_permit.so

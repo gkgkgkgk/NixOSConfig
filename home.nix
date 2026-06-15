@@ -28,19 +28,24 @@ in
     x11.enable = true;
   };
 
-  programs.noctalia-shell.enable = true;
-
   home.packages = with pkgs; [
     wl-clipboard
     grim
     slurp
-    networkmanagerapplet
     wlogout
     awww
     socat
+    wlsunset
     nerd-fonts.geist-mono
     imagemagick
     nemo-with-extensions
+    # macOS-style Quick Look: spacebar in Nemo opens a fullscreen preview,
+    # arrow keys cycle through siblings. Runs as a DBus service that Nemo
+    # auto-invokes — no Nemo config needed.
+    # NOTE: nemo-preview is X11-only (calls gdk_x11_window_foreign_new_for_display
+    # during startup) and segfaults on Wayland. The DBus service override below
+    # forces GDK_BACKEND=x11 so it routes through XWayland.
+    nemo-preview
     # Provides the org.cinnamon.desktop.default-applications.terminal gsettings
     # schema that Nemo reads for "Open in Terminal". Note: installing it here is
     # necessary but NOT sufficient — its schema dir must also be on XDG_DATA_DIRS,
@@ -58,15 +63,14 @@ in
     gnome-themes-extra  # provides Adwaita-dark on disk for the Tick/Tock symlinks
     glib                # provides the `gsettings` CLI used by theme-hooks/gtk.sh
 
-    # Terminal launcher for Nemo's "Open in Terminal". Nemo launches the
-    # configured terminal through GIO, which resolves the bare name `ghostty`
-    # to ghostty's running GApplication and routes the request over D-Bus to
-    # it — so the new window opens in the *running* instance's directory
-    # ($HOME) instead of the folder Nemo set as the spawn cwd. Pointing the
-    # terminal at this wrapper (a plain script with no app-id) makes GIO
-    # spawn it directly; the child ghostty then honors gtk-single-instance=false
-    # and opens a fresh window in the inherited launch directory.
-    (writeShellScriptBin "ghostty-here" ''exec ${ghostty}/bin/ghostty "$@"'')
+    # Terminal launcher for Nemo's "Open in Terminal".
+    # Relying on Ghostty's `working-directory = inherit` is unreliable: it only
+    # works when no other Ghostty window already exists (see
+    # ghostty-org/ghostty#8977). Pass --working-directory="$PWD" explicitly so
+    # the new window always lands in the folder Nemo spawned us from.
+    # gtk-single-instance=false (set in ghostty config) keeps each external
+    # launch its own process so the flag actually applies.
+    (writeShellScriptBin "ghostty-here" ''exec ${ghostty}/bin/ghostty --working-directory="$PWD" "$@"'')
   ];
 
   programs.ghostty.enable = true;
@@ -123,6 +127,14 @@ in
   xdg.systemDirs.data = [
     "${pkgs.cinnamon-desktop}/share/gsettings-schemas/cinnamon-desktop-${pkgs.cinnamon-desktop.version}"
   ];
+
+  # Override the nemo-preview DBus service so it launches under GDK_BACKEND=x11.
+  # See the nemo-preview package note in home.packages for why.
+  xdg.dataFile."dbus-1/services/org.nemo.Preview.service".text = ''
+    [D-BUS Service]
+    Name=org.nemo.Preview
+    Exec=${pkgs.coreutils}/bin/env GDK_BACKEND=x11 ${pkgs.nemo-preview}/bin/nemo-preview
+  '';
 
   # ── Hyprland ────────────────────────────────────────────────────────────────
   # Lua-based config (Hyprland >= 0.55). Each `settings.<name>` attribute is
@@ -223,20 +235,20 @@ in
       env = [
         { _args = [ "XCURSOR_THEME"        "BreezeX-RosePine-Linux" ]; }
         { _args = [ "XCURSOR_SIZE"         "24" ]; }
-        { _args = [ "NOCTALIA_PAM_SERVICE" "noctalia-lock" ]; }
+        { _args = [ "GAVBAR_PAM_SERVICE" "gavbar-lock" ]; }
         { _args = [ "QT_QPA_PLATFORMTHEME" "kde" ]; }
       ];
 
       # Layer rules. Hyprland doesn't blur Wayland layer surfaces by default —
-      # GavBar's panels live under WlrLayer.Top in the `noctalia-background-*`
+      # GavBar's panels live under WlrLayer.Top in the `gavbar-background-*`
       # namespace, so without this they sit on top of the wallpaper with no
       # backdrop blur even when GavBar's `enableBlurBehind` setting is on.
       # ignore_alpha = 0 makes the blur still apply through GavBar's transparent
       # padding around the rounded panel card.
       layer_rule = [
         {
-          name = "noctalia-blur";
-          match.namespace = "^(noctalia-background-).*";
+          name = "gavbar-blur";
+          match.namespace = "^(gavbar-background-).*";
           blur = true;
           # ignore_alpha skips blur where surface alpha is below this threshold.
           # ~0.3 means: don't blur until a panel has faded in ~halfway, which makes
@@ -317,7 +329,7 @@ in
         # `bindr = SUPER, Super_L, ...`; the lua port uses { release = true }.
         { _args = [
             "SUPER + SUPER_L"
-            (exec "QS_CONFIG_PATH=/home/gavri/Code/GavBar noctalia-shell msg launcher toggle")
+            (exec "qs -p /home/gavri/Code/GavBar ipc call launcher toggle")
             { release = true; }
           ];
         }
@@ -340,9 +352,8 @@ in
         hl.exec_cmd("awww-daemon")
         -- Theme pipeline now lives inside GavBar (Scripts/bash/theme-switch.sh).
         hl.exec_cmd("bash -c '$HOME/Code/GavBar/Scripts/bash/theme-switch.sh'")
-        hl.exec_cmd("nm-applet")
         hl.exec_cmd("eww daemon")
-        -- GavBar (noctalia-shell), the post-startup theme re-apply, and the
+        -- GavBar (quickshell), the post-startup theme re-apply, and the
         -- boot lock are managed as systemd user services — see below.
       end)
 
@@ -413,6 +424,28 @@ in
     noDisplay = true;
   };
 
+  # Hide the gvim launcher shipped by the `vim` package — there is no gvim
+  # binary in this build (no GUI), so the entry is a dead launcher.
+  xdg.desktopEntries.gvim = {
+    name = "GVim";
+    exec = "gvim %F";
+    noDisplay = true;
+  };
+
+  # Hide the Plasma System Settings launchers. The package is pulled in by
+  # qt.platformTheme.name = "kde" (so Qt apps read kdeglobals); we just don't
+  # want the entries cluttering the launcher.
+  xdg.desktopEntries.systemsettings = {
+    name = "System Settings";
+    exec = "systemsettings";
+    noDisplay = true;
+  };
+  xdg.desktopEntries.kdesystemsettings = {
+    name = "System Settings";
+    exec = "systemsettings";
+    noDisplay = true;
+  };
+
   xdg.mimeApps = {
     enable = true;
     defaultApplications = {
@@ -454,23 +487,19 @@ in
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
-  # ── Noctalia/GavBar startup chain ───────────────────────────────────────────
-  # Replaces the old `sleep 2 && noctalia-shell; sleep 5 && noctalia.sh; sleep 4 &&
-  # noctalia-shell msg lock toggle` chain in Hyprland exec-once. Two units:
-  #   1. noctalia-shell.service: the GavBar process, restarted on failure.
-  #   2. noctalia-lock.service: locks the session on boot — with greetd autologin,
+  # ── GavBar startup chain ────────────────────────────────────────────────────
+  # Two units:
+  #   1. gavbar.service: the GavBar process (quickshell), restarted on failure.
+  #   2. gavbar-lock.service: locks the session on boot — with greetd autologin,
   #      this is the de-facto login screen (unlocked with the system password).
-  # Small sleeps remain inside the lock oneshot because noctalia-shell exposes no
+  # Small sleeps remain inside the lock oneshot because quickshell exposes no
   # readiness signal (no sd_notify, no advertised socket path we can probe).
   #
-  # Color theming: colors.json is owned solely by the theme pipeline that now
-  # lives inside GavBar (Scripts/bash/theme-hooks/gavbar.sh, run by theme-switch.sh).
-  # GavBar's noctalia-derived ColorSchemeService has been stripped, so there is
-  # no longer anything in the shell that writes colors.json — hence no need for
-  # NOCTALIA_EXTERNAL_COLORS and no need for the old noctalia-theme-reapply unit.
-  systemd.user.services.noctalia-shell = {
+  # Color theming: colors.json is owned solely by the theme pipeline inside
+  # GavBar (Scripts/bash/theme-hooks/gavbar.sh, run by theme-switch.sh).
+  systemd.user.services.gavbar = {
     Unit = {
-      Description = "GavBar / noctalia-shell";
+      Description = "GavBar shell";
       PartOf = [ "graphical-session.target" ];
       After = [ "graphical-session.target" ];
     };
@@ -478,36 +507,34 @@ in
       Environment = [
         "QS_CONFIG_PATH=/home/gavri/Code/GavBar"
       ];
-      ExecStart = "${pkgs.bash}/bin/bash -lc 'noctalia-shell'";
+      ExecStart = "${pkgs.bash}/bin/bash -lc 'qs'";
       Restart = "on-failure";
       RestartSec = 2;
     };
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
-  systemd.user.services.noctalia-lock = {
+  systemd.user.services.gavbar-lock = {
     Unit = {
       Description = "Lock session on boot (effective login screen)";
-      After = [ "graphical-session.target" "noctalia-shell.service" ];
-      Requires = [ "noctalia-shell.service" ];
+      After = [ "graphical-session.target" "gavbar.service" ];
+      Requires = [ "gavbar.service" ];
     };
     Service = {
       Type = "oneshot";
       Environment = "QS_CONFIG_PATH=/home/gavri/Code/GavBar";
       # The IPC target is `lockScreen` with function `lock` (idempotent: no-ops if
-      # already locked) — the old `lock toggle` hit a non-existent target ("Target
-      # not found"). noctalia-shell exposes no readiness signal and `msg` exits 0
-      # even on failure, so poll: `msg` prints an error to stdout/stderr when the
-      # instance/target isn't ready yet, and prints nothing on success. Retry until
-      # the output is empty (= the lock actually fired), capped at ~60s.
-      ExecStart = "${pkgs.bash}/bin/bash -lc 'for i in $(seq 1 120); do out=$(noctalia-shell msg lockScreen lock 2>&1); [ -z \"$out\" ] && exit 0; sleep 0.5; done'";
+      # already locked). quickshell exposes no readiness signal and `ipc call`
+      # exits 0 even on failure, so poll: it prints an error to stdout/stderr
+      # when the instance/target isn't ready yet, and prints nothing on success.
+      # Retry until the output is empty (= the lock actually fired), capped at ~60s.
+      ExecStart = "${pkgs.bash}/bin/bash -lc 'for i in $(seq 1 120); do out=$(qs ipc call lockScreen lock 2>&1); [ -z \"$out\" ] && exit 0; sleep 0.5; done'";
     };
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
-  # NOTE: no notification daemon here. GavBar/noctalia owns
-  # org.freedesktop.Notifications on the bus, so a second daemon (mako) never
-  # binds it — it sat disabled/inactive. Notification behavior is configured in
-  # GavBar's settings.json (`notifications` key).
+  # NOTE: no notification daemon here. GavBar owns org.freedesktop.Notifications
+  # on the bus, so a second daemon (mako) never binds it — it sat disabled/inactive.
+  # Notification behavior is configured in GavBar's settings.json (`notifications` key).
 
 }
